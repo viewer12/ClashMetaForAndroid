@@ -97,7 +97,17 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         sendClashStarted()
 
-        return super.onStartCommand(intent, flags, startId)
+        // VpnService inherits Service's non-sticky default. On devices with aggressive
+        // background management (notably OriginOS), that meant the tunnel disappeared
+        // permanently after the process was reclaimed. A sticky foreground VPN is
+        // recreated by Android, while explicit stopSelf()/user stops still stay stopped.
+        return START_STICKY
+    }
+
+    override fun onRevoke() {
+        reason = "VPN permission was revoked by Android or another VPN app"
+        Log.w(reason!!)
+        super.onRevoke()
     }
 
     override fun onDestroy() {

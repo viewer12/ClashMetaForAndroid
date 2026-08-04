@@ -54,6 +54,10 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
     private lateinit var modelStatus: TextView
     private lateinit var progressRow: View
     private lateinit var progressText: TextView
+    private lateinit var suggestions: View
+    private var streamingMessageId: String? = null
+    private var followOutput = true
+    private var scrollScheduled = false
 
     override suspend fun main() {
         val screen = AgentScreenDesign(this)
@@ -70,9 +74,26 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         modelStatus = root.findViewById(R.id.agent_model_status)
         progressRow = root.findViewById(R.id.agent_progress_row)
         progressText = root.findViewById(R.id.agent_progress_text)
-        adapter = AgentChatAdapter(this, conversationStore.load().toMutableList())
+        suggestions = root.findViewById(R.id.agent_suggestions_container)
+        adapter = AgentChatAdapter(this, conversationStore.load().toMutableList()) { messageId ->
+            if (followOutput && messageId == streamingMessageId) scheduleScrollToEnd()
+        }
         recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+        recycler.itemAnimator = null
+        recycler.setHasFixedSize(true)
         recycler.adapter = adapter
+        recycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (recyclerView.scrollState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    followOutput = isNearBottom()
+                }
+            }
+
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) followOutput = isNearBottom()
+            }
+        })
+        updateSuggestionsVisibility()
         scrollToEnd()
 
         root.findViewById<View>(R.id.agent_back).setOnClickListener { finish() }
@@ -120,7 +141,11 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         val history = adapter.messages.toList()
         val userMessage = message(AgentMessageRole.USER, prompt)
         adapter.append(userMessage)
-        val assistantPosition = adapter.append(message(AgentMessageRole.ASSISTANT, "正在思考…"))
+        val assistantMessage = message(AgentMessageRole.ASSISTANT, "正在思考…")
+        val assistantPosition = adapter.append(assistantMessage)
+        streamingMessageId = assistantMessage.id
+        followOutput = true
+        updateSuggestionsVisibility()
         scrollToEnd()
         setRunning(true, "正在连接 ${settings.model}…")
 
@@ -143,9 +168,12 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
                         is AgentRunEvent.Thinking -> progressText.text = "正在规划第 ${event.round} 步…"
                         is AgentRunEvent.Streaming -> {
                             val now = SystemClock.elapsedRealtime()
-                            if (now - lastRendered >= 40L || event.text.length < 80) {
-                                adapter.replace(assistantPosition, message(AgentMessageRole.ASSISTANT, event.text))
-                                scrollToEnd()
+                            if (now - lastRendered >= STREAM_RENDER_INTERVAL_MS || event.text.length < 80) {
+                                adapter.replace(
+                                    assistantPosition,
+                                    assistantMessage.copy(content = event.text),
+                                    streaming = true,
+                                )
                                 lastRendered = now
                             }
                         }
@@ -156,12 +184,15 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
                         is AgentRunEvent.Completed -> Unit
                     }
                 } }
-                adapter.replace(assistantPosition, message(AgentMessageRole.ASSISTANT, finalText))
+                adapter.replace(assistantPosition, assistantMessage.copy(content = finalText))
             } catch (_: CancellationException) {
-                adapter.replace(assistantPosition, message(AgentMessageRole.ASSISTANT, "已停止本次操作。"))
+                adapter.replace(assistantPosition, assistantMessage.copy(content = "已停止本次操作。"))
             } catch (error: Throwable) {
                 val detail = error.message?.take(1200) ?: error.javaClass.simpleName
-                adapter.replace(assistantPosition, message(AgentMessageRole.ASSISTANT, "操作未完成：$detail", isError = true))
+                adapter.replace(
+                    assistantPosition,
+                    assistantMessage.copy(content = "操作未完成：$detail", isError = true),
+                )
             } finally {
                 conversationStore.save(adapter.messages)
                 setRunning(false, "")
@@ -211,9 +242,10 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
             AgentAuthorizationMode.FULL_AUTO -> R.id.agent_auth_full
         })
 
+        val horizontalMargin = (24 * resources.displayMetrics.density).toInt()
         val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(R.string.agent_settings)
-            .setView(view)
+            .setView(view, horizontalMargin, 0, horizontalMargin, 0)
             .setNegativeButton(R.string.agent_cancel, null)
             .setPositiveButton(R.string.agent_save, null)
             .create()
@@ -263,6 +295,7 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
             .setPositiveButton(R.string.agent_clear) { _, _ ->
                 adapter.clear()
                 conversationStore.clear()
+                updateSuggestionsVisibility()
             }
             .show()
     }
@@ -309,6 +342,38 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         }
     }
 
+    private fun scheduleScrollToEnd() {
+        if (scrollScheduled || !::recycler.isInitialized) return
+        scrollScheduled = true
+        recycler.postOnAnimation {
+            scrollScheduled = false
+            if (followOutput && adapter.itemCount > 0) {
+                recycler.scrollToPosition(adapter.itemCount - 1)
+            }
+        }
+    }
+
+    private fun isNearBottom(): Boolean {
+        if (!::recycler.isInitialized || adapter.itemCount == 0) return true
+        val manager = recycler.layoutManager as? LinearLayoutManager ?: return true
+        return manager.findLastVisibleItemPosition() >= adapter.itemCount - 2
+    }
+
+    private fun updateSuggestionsVisibility() {
+        if (::suggestions.isInitialized) {
+            suggestions.visibility = if (adapter.messages.isEmpty()) View.VISIBLE else View.GONE
+        }
+    }
+
+    override fun onDestroy() {
+        if (::adapter.isInitialized) adapter.close()
+        super.onDestroy()
+    }
+
     private fun message(role: AgentMessageRole, content: String, isError: Boolean = false) =
         AgentConversationMessage(UUID.randomUUID().toString(), role, content, isError = isError)
+
+    private companion object {
+        const val STREAM_RENDER_INTERVAL_MS = 80L
+    }
 }
