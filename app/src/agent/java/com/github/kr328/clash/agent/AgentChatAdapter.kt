@@ -2,6 +2,10 @@ package com.github.kr328.clash.agent
 
 import android.content.Context
 import android.graphics.Color
+import android.text.NoCopySpan
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.util.TypedValue
 import android.view.Gravity
@@ -34,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference
 class AgentChatAdapter(
     private val context: Context,
     val messages: MutableList<AgentConversationMessage>,
-    private val onContentRendered: (String, Int) -> Unit = { _, _ -> },
+    private val onContentHeightChanged: (String) -> Unit = {},
 ) : RecyclerView.Adapter<AgentChatAdapter.Holder>(), Closeable {
     private val markwon = Markwon.create(context)
     private val markdownExecutor = Executors.newSingleThreadExecutor()
@@ -49,8 +53,17 @@ class AgentChatAdapter(
         val appliedSequence = AtomicLong()
         val renderScheduled = AtomicBoolean()
         val pendingRender = AtomicReference<RenderRequest?>()
+        val renderedText = SpannableStringBuilder()
         var measuredHeight = 0
         var heightReportPending = false
+
+        init {
+            text.setSpannableFactory(object : Spannable.Factory() {
+                override fun newSpannable(source: CharSequence): Spannable =
+                    source as? Spannable ?: SpannableString(source)
+            })
+            text.setText(renderedText, TextView.BufferType.SPANNABLE)
+        }
     }
 
     data class RenderRequest(
@@ -58,6 +71,7 @@ class AgentChatAdapter(
         val sequence: Long,
         val messageId: String,
         val markdown: String,
+        val streaming: Boolean,
     )
 
     init {
@@ -74,14 +88,6 @@ class AgentChatAdapter(
 
     override fun onBindViewHolder(holder: Holder, position: Int) {
         bindMessage(holder, messages[position], fullBind = true)
-    }
-
-    override fun onBindViewHolder(holder: Holder, position: Int, payloads: MutableList<Any>) {
-        if (payloads.contains(PAYLOAD_CONTENT)) {
-            bindMessage(holder, messages[position], fullBind = false)
-        } else {
-            super.onBindViewHolder(holder, position, payloads)
-        }
     }
 
     override fun onViewRecycled(holder: Holder) {
@@ -103,13 +109,20 @@ class AgentChatAdapter(
 
     private fun bindMessage(holder: Holder, message: AgentConversationMessage, fullBind: Boolean) {
         val identityChanged = holder.boundMessageId != message.id
-        if (fullBind || identityChanged) {
+        if (identityChanged) {
             holder.boundMessageId = message.id
             holder.bindToken.incrementAndGet()
             holder.appliedSequence.set(0L)
             holder.pendingRender.set(null)
-            holder.measuredHeight = holder.itemView.height
+            holder.renderedText.getSpans(0, holder.renderedText.length, Any::class.java).forEach { span ->
+                if (span !is NoCopySpan) holder.renderedText.removeSpan(span)
+            }
+            holder.renderedText.clear()
+            holder.text.minHeight = 0
+            holder.measuredHeight = 0
             holder.heightReportPending = false
+        }
+        if (fullBind || identityChanged) {
             val mine = message.role == AgentMessageRole.USER
             val params = holder.card.layoutParams as FrameLayout.LayoutParams
             params.gravity = if (mine) Gravity.END else Gravity.START
@@ -130,15 +143,16 @@ class AgentChatAdapter(
             holder.text.setTextColor(foreground)
         }
         holder.card.visibility = if (message.content.isBlank()) View.INVISIBLE else View.VISIBLE
-        enqueueMarkdown(holder, message)
+        enqueueMarkdown(holder, message, streaming = false)
     }
 
-    private fun enqueueMarkdown(holder: Holder, message: AgentConversationMessage) {
+    private fun enqueueMarkdown(holder: Holder, message: AgentConversationMessage, streaming: Boolean) {
         val request = RenderRequest(
             bindToken = holder.bindToken.get(),
             sequence = holder.sequence.incrementAndGet(),
             messageId = message.id,
             markdown = message.content,
+            streaming = streaming,
         )
         holder.pendingRender.set(request)
         if (holder.renderScheduled.compareAndSet(false, true)) {
@@ -164,17 +178,28 @@ class AgentChatAdapter(
                 }
                 if (request.sequence <= holder.appliedSequence.get()) return@post
                 holder.appliedSequence.set(request.sequence)
-                if (rendered != null) {
-                    markwon.setParsedMarkdown(holder.text, rendered)
-                } else {
-                    holder.text.text = request.markdown
+                if (request.streaming) {
+                    holder.text.minHeight = maxOf(holder.text.minHeight, holder.text.height)
                 }
-                reportHeightAfterLayout(holder, request.messageId)
+                if (holder.measuredHeight == 0 && holder.itemView.height > 0) {
+                    holder.measuredHeight = holder.itemView.height
+                }
+                applyRenderedTail(holder, rendered ?: SpannableString(request.markdown))
+                reportHeightAfterLayout(holder, request.messageId, request.streaming)
             }
         }
     }
 
-    private fun reportHeightAfterLayout(holder: Holder, messageId: String) {
+    private fun applyRenderedTail(holder: Holder, rendered: Spanned) {
+        val buffer = holder.renderedText
+        val patch = StreamingTextPatchPlanner.calculate(buffer, rendered) ?: return
+        buffer.getSpans(patch.start, buffer.length, Any::class.java).forEach { span ->
+            if (span !is NoCopySpan) buffer.removeSpan(span)
+        }
+        buffer.replace(patch.start, patch.oldEnd, rendered, patch.start, patch.newEnd)
+    }
+
+    private fun reportHeightAfterLayout(holder: Holder, messageId: String, streaming: Boolean) {
         if (holder.heightReportPending) return
         holder.heightReportPending = true
         holder.itemView.doOnNextLayout { view ->
@@ -182,7 +207,8 @@ class AgentChatAdapter(
             if (holder.boundMessageId != messageId) return@doOnNextLayout
             val previous = holder.measuredHeight
             holder.measuredHeight = view.height
-            onContentRendered(messageId, if (previous > 0) view.height - previous else 0)
+            if (streaming) holder.text.minHeight = maxOf(holder.text.minHeight, holder.text.height)
+            if (previous > 0 && view.height != previous) onContentHeightChanged(messageId)
         }
     }
 
@@ -196,16 +222,17 @@ class AgentChatAdapter(
     fun replace(position: Int, message: AgentConversationMessage, streaming: Boolean = false) {
         if (position !in messages.indices) return
         messages[position] = message
-        if (!streaming) {
-            notifyItemChanged(position)
-            return
-        }
         val holder = attachedHolders.firstOrNull { it.boundMessageId == message.id }
         if (holder != null) {
-            holder.card.visibility = if (message.content.isBlank()) View.INVISIBLE else View.VISIBLE
-            enqueueMarkdown(holder, message)
-        } else {
-            notifyItemChanged(position, PAYLOAD_CONTENT)
+            if (streaming) {
+                holder.card.visibility = if (message.content.isBlank()) View.INVISIBLE else View.VISIBLE
+                enqueueMarkdown(holder, message, streaming = true)
+            } else if (!message.isError) {
+                holder.card.visibility = View.VISIBLE
+                enqueueMarkdown(holder, message, streaming = false)
+            } else {
+                bindMessage(holder, message, fullBind = true)
+            }
         }
     }
 
@@ -229,8 +256,4 @@ class AgentChatAdapter(
     }.getOrElse { hashCode().toLong() }
 
     private fun Int.withAlpha(alpha: Int): Int = Color.argb(alpha, Color.red(this), Color.green(this), Color.blue(this))
-
-    private companion object {
-        val PAYLOAD_CONTENT = Any()
-    }
 }

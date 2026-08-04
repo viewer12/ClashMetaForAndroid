@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.quickie.bundled)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.markwon.core)
+    testImplementation(kotlin("test"))
 }
 
 tasks.getByName("clean", type = Delete::class) {

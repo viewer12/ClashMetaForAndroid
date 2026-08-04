@@ -76,10 +76,8 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         progressRow = root.findViewById(R.id.agent_progress_row)
         progressText = root.findViewById(R.id.agent_progress_text)
         suggestions = root.findViewById(R.id.agent_suggestions_container)
-        adapter = AgentChatAdapter(this, conversationStore.load().toMutableList()) { messageId, heightDelta ->
-            if (followOutput && messageId == streamingMessageId) {
-                if (heightDelta > 0) recycler.scrollBy(0, heightDelta) else scheduleScrollToEnd()
-            }
+        adapter = AgentChatAdapter(this, conversationStore.load().toMutableList()) { messageId ->
+            if (followOutput && messageId == streamingMessageId) scheduleScrollToEnd()
         }
         recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         recycler.itemAnimator = null
