@@ -91,7 +91,7 @@ jobs:
             -alias androiddebugkey \
             -file "$RUNNER_TEMP/agent-debug-cert.der"
           key_fingerprint="$(sha256sum "$RUNNER_TEMP/agent-debug-cert.der" | cut -d' ' -f1)"
-          apk_fingerprint="$("$apksigner" verify --print-certs "$apk" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
+          apk_fingerprint="$("$apksigner" verify --print-certs "$apk" | sed -n 's/.*certificate SHA-256 digest: //p' | head -n 1)"
           test -n "$key_fingerprint"
           test -n "$apk_fingerprint"
           echo "Cached key certificate: ${key_fingerprint,,}"
