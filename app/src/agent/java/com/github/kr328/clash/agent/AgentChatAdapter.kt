@@ -10,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.core.view.doOnNextLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.github.kr328.clash.R
 import com.github.kr328.clash.agent.model.AgentConversationMessage
@@ -33,21 +34,28 @@ import java.util.concurrent.atomic.AtomicReference
 class AgentChatAdapter(
     private val context: Context,
     val messages: MutableList<AgentConversationMessage>,
-    private val onContentRendered: (String) -> Unit = {},
+    private val onContentRendered: (String, Int) -> Unit = { _, _ -> },
 ) : RecyclerView.Adapter<AgentChatAdapter.Holder>(), Closeable {
     private val markwon = Markwon.create(context)
     private val markdownExecutor = Executors.newSingleThreadExecutor()
+    private val attachedHolders = mutableSetOf<Holder>()
 
     class Holder(view: View) : RecyclerView.ViewHolder(view) {
         val card: MaterialCardView = view.findViewById(R.id.agent_message_card)
         val text: TextView = view.findViewById(R.id.agent_message_text)
-        val revision = AtomicLong()
+        var boundMessageId: String? = null
+        val bindToken = AtomicLong()
+        val sequence = AtomicLong()
+        val appliedSequence = AtomicLong()
         val renderScheduled = AtomicBoolean()
         val pendingRender = AtomicReference<RenderRequest?>()
+        var measuredHeight = 0
+        var heightReportPending = false
     }
 
     data class RenderRequest(
-        val revision: Long,
+        val bindToken: Long,
+        val sequence: Long,
         val messageId: String,
         val markdown: String,
     )
@@ -77,13 +85,31 @@ class AgentChatAdapter(
     }
 
     override fun onViewRecycled(holder: Holder) {
-        holder.revision.incrementAndGet()
+        holder.bindToken.incrementAndGet()
+        holder.boundMessageId = null
         holder.pendingRender.set(null)
         super.onViewRecycled(holder)
     }
 
+    override fun onViewAttachedToWindow(holder: Holder) {
+        attachedHolders += holder
+        super.onViewAttachedToWindow(holder)
+    }
+
+    override fun onViewDetachedFromWindow(holder: Holder) {
+        attachedHolders -= holder
+        super.onViewDetachedFromWindow(holder)
+    }
+
     private fun bindMessage(holder: Holder, message: AgentConversationMessage, fullBind: Boolean) {
-        if (fullBind) {
+        val identityChanged = holder.boundMessageId != message.id
+        if (fullBind || identityChanged) {
+            holder.boundMessageId = message.id
+            holder.bindToken.incrementAndGet()
+            holder.appliedSequence.set(0L)
+            holder.pendingRender.set(null)
+            holder.measuredHeight = holder.itemView.height
+            holder.heightReportPending = false
             val mine = message.role == AgentMessageRole.USER
             val params = holder.card.layoutParams as FrameLayout.LayoutParams
             params.gravity = if (mine) Gravity.END else Gravity.START
@@ -103,12 +129,14 @@ class AgentChatAdapter(
             holder.card.strokeColor = if (mine || message.isError) background else foreground.withAlpha(32)
             holder.text.setTextColor(foreground)
         }
+        holder.card.visibility = if (message.content.isBlank()) View.INVISIBLE else View.VISIBLE
         enqueueMarkdown(holder, message)
     }
 
     private fun enqueueMarkdown(holder: Holder, message: AgentConversationMessage) {
         val request = RenderRequest(
-            revision = holder.revision.incrementAndGet(),
+            bindToken = holder.bindToken.get(),
+            sequence = holder.sequence.incrementAndGet(),
             messageId = message.id,
             markdown = message.content,
         )
@@ -131,14 +159,30 @@ class AgentChatAdapter(
 
             val rendered: Spanned? = runCatching { markwon.toMarkdown(request.markdown) }.getOrNull()
             holder.text.post {
-                if (holder.revision.get() != request.revision) return@post
+                if (holder.bindToken.get() != request.bindToken || holder.boundMessageId != request.messageId) {
+                    return@post
+                }
+                if (request.sequence <= holder.appliedSequence.get()) return@post
+                holder.appliedSequence.set(request.sequence)
                 if (rendered != null) {
                     markwon.setParsedMarkdown(holder.text, rendered)
                 } else {
                     holder.text.text = request.markdown
                 }
-                onContentRendered(request.messageId)
+                reportHeightAfterLayout(holder, request.messageId)
             }
+        }
+    }
+
+    private fun reportHeightAfterLayout(holder: Holder, messageId: String) {
+        if (holder.heightReportPending) return
+        holder.heightReportPending = true
+        holder.itemView.doOnNextLayout { view ->
+            holder.heightReportPending = false
+            if (holder.boundMessageId != messageId) return@doOnNextLayout
+            val previous = holder.measuredHeight
+            holder.measuredHeight = view.height
+            onContentRendered(messageId, if (previous > 0) view.height - previous else 0)
         }
     }
 
@@ -152,7 +196,17 @@ class AgentChatAdapter(
     fun replace(position: Int, message: AgentConversationMessage, streaming: Boolean = false) {
         if (position !in messages.indices) return
         messages[position] = message
-        if (streaming) notifyItemChanged(position, PAYLOAD_CONTENT) else notifyItemChanged(position)
+        if (!streaming) {
+            notifyItemChanged(position)
+            return
+        }
+        val holder = attachedHolders.firstOrNull { it.boundMessageId == message.id }
+        if (holder != null) {
+            holder.card.visibility = if (message.content.isBlank()) View.INVISIBLE else View.VISIBLE
+            enqueueMarkdown(holder, message)
+        } else {
+            notifyItemChanged(position, PAYLOAD_CONTENT)
+        }
     }
 
     fun clear() {
