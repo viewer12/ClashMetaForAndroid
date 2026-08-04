@@ -15,8 +15,10 @@ import com.github.kr328.clash.service.model.AccessControlMode
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.cancelAndJoinBlocking
 import com.github.kr328.clash.service.util.parseCIDR
+import com.github.kr328.clash.service.util.ProcessExitDiagnostics
 import com.github.kr328.clash.service.util.sendClashStarted
 import com.github.kr328.clash.service.util.sendClashStopped
+import com.github.kr328.clash.service.util.VpnServiceRecovery
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 
@@ -83,6 +85,8 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
     override fun onCreate() {
         super.onCreate()
 
+        ProcessExitDiagnostics.logLatest(this)
+
         if (StatusProvider.serviceRunning)
             return stopSelf()
 
@@ -92,6 +96,12 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
         StaticNotificationModule.notifyLoadingNotification(this)
 
         runtime.launch()
+        launch {
+            while (isActive) {
+                VpnServiceRecovery.arm(this@TunService)
+                delay(VpnServiceRecovery.heartbeatDelay(this@TunService))
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -112,6 +122,10 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
 
     override fun onDestroy() {
         TunModule.requestStop()
+
+        // A deliberate stop must remain stopped. Abrupt process death cannot execute this
+        // cancellation, which is exactly when the system-owned recovery alarm is needed.
+        VpnServiceRecovery.cancel(this)
 
         StatusProvider.serviceRunning = false
 
