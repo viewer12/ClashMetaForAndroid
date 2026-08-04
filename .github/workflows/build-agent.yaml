@@ -80,6 +80,19 @@ jobs:
       - name: Build arm64 APK
         run: ./gradlew --no-daemon -PagentArm64Only=true app:assembleAgentDebug
 
+      - name: Verify stable signing identity
+        shell: bash
+        run: |
+          apk="$(find app/build/outputs/apk/agent/debug -name '*-arm64-v8a-*.apk' -print -quit)"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          key_fingerprint="$(keytool -list -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey | awk -F'SHA256: ' '/SHA256:/{print $2; exit}' | tr -d ':')"
+          apk_fingerprint="$("$apksigner" verify --print-certs "$apk" | awk -F': ' '/certificate SHA-256 digest/{print $2; exit}')"
+          test "${key_fingerprint,,}" = "${apk_fingerprint,,}"
+          echo "Verified stable APK signing certificate: ${apk_fingerprint}"
+
       - name: Upload arm64 APK
         uses: actions/upload-artifact@v7
         with:
