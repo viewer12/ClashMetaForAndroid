@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.DialogInterface
 import android.os.SystemClock
 import android.net.Uri
-import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
@@ -101,12 +100,6 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         root.findViewById<View>(R.id.agent_clear).setOnClickListener { confirmClear() }
         root.findViewById<View>(R.id.agent_send).setOnClickListener { sendCurrentMessage() }
         root.findViewById<View>(R.id.agent_stop).setOnClickListener { generation?.cancel() }
-        input.setOnEditorActionListener { _, actionId, event ->
-            val isSend = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND ||
-                (event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN && !event.isShiftPressed)
-            if (isSend) sendCurrentMessage()
-            isSend
-        }
 
         root.findViewById<View>(R.id.agent_suggest_create).setOnClickListener {
             submitPrompt("请从零开始帮我创建一份可用配置。先了解我的节点来源、使用地区和分流需求；如果没有节点，先创建安全的 DIRECT/REJECT 基础配置。")

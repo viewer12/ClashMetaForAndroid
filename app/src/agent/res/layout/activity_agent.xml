@@ -165,17 +165,29 @@
                 android:id="@+id/agent_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:imeOptions="actionSend"
+                android:gravity="top|start"
+                android:imeOptions="flagNoEnterAction"
                 android:inputType="textCapSentences|textMultiLine"
                 android:maxLines="5"
-                android:minLines="1" />
+                android:minHeight="56dp"
+                android:minLines="1"
+                android:singleLine="false" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/agent_send"
-            android:layout_width="wrap_content"
+            style="@style/Widget.MaterialComponents.Button.Icon"
+            android:layout_width="56dp"
             android:layout_height="56dp"
             android:layout_marginStart="8dp"
-            android:text="@string/agent_send" />
+            android:contentDescription="@string/agent_send"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:minWidth="0dp"
+            android:padding="0dp"
+            app:icon="@drawable/ic_agent_send"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconSize="24dp" />
     </LinearLayout>
 </LinearLayout>
