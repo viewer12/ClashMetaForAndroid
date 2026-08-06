@@ -11,6 +11,7 @@ import com.github.kr328.clash.core.bridge.Bridge
 import com.github.kr328.clash.core.model.LogMessage
 import com.github.kr328.clash.design.DiagnosticsDesign
 import com.github.kr328.clash.design.ui.ToastDuration
+import com.github.kr328.clash.design.R as DesignR
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.util.logsDir
 import com.github.kr328.clash.util.withClash
@@ -112,7 +113,7 @@ class DiagnosticsActivity : BaseActivity<DiagnosticsDesign>() {
 
         startForegroundServiceCompat(LogcatService::class.intent)
 
-        design.showToast(R.string.diagnostics_debug_enabled, ToastDuration.Short)
+        design.showToast(DesignR.string.diagnostics_debug_enabled, ToastDuration.Short)
 
         design.patch(fetchState())
     }
@@ -122,7 +123,7 @@ class DiagnosticsActivity : BaseActivity<DiagnosticsDesign>() {
 
         stopService(LogcatService::class.intent)
 
-        design.showToast(R.string.diagnostics_debug_disabled, ToastDuration.Short)
+        design.showToast(DesignR.string.diagnostics_debug_disabled, ToastDuration.Short)
 
         design.patch(fetchState())
     }
@@ -142,7 +143,7 @@ class DiagnosticsActivity : BaseActivity<DiagnosticsDesign>() {
         val bundle = buildDiagnosticsBundle()
 
         if (bundle == null) {
-            design.showToast(R.string.diagnostics_export_failed, ToastDuration.Short)
+            design.showToast(DesignR.string.diagnostics_export_failed, ToastDuration.Short)
 
             return
         }
@@ -155,7 +156,7 @@ class DiagnosticsActivity : BaseActivity<DiagnosticsDesign>() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-        startActivity(Intent.createChooser(intent, getString(R.string.diagnostics_export)))
+        startActivity(Intent.createChooser(intent, getString(DesignR.string.diagnostics_export)))
     }
 
     private suspend fun buildDiagnosticsBundle(): File? = withContext(Dispatchers.IO) {
