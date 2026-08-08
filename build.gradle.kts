@@ -59,8 +59,20 @@ subprojects {
     // The development signing key must stay stable across machines so every
     // build can update previous installs without data loss. If it is missing,
     // fail fast with a hint instead of silently creating a fresh key.
+    //
+    // Only for builds that will actually be signed with it. This ran on every
+    // :app configuration before, which meant a release build — or even the
+    // agent module's unit tests — failed on any machine without a debug
+    // keystore, including CI runners and anyone building a release from a
+    // fresh clone.
     val agentDebugKeystore = file(System.getProperty("user.home") + "/.android/debug.keystore")
-    if (isApp && !agentDebugKeystore.exists()) {
+    val needsDebugSigningKey = gradle.startParameter.taskNames.any { requested ->
+        val task = requested.substringAfterLast(':')
+        (task.contains("Debug") || task.equals("build", ignoreCase = true)) &&
+            listOf("assemble", "install", "bundle", "package", "build")
+                .any { task.startsWith(it, ignoreCase = true) }
+    }
+    if (isApp && needsDebugSigningKey && !agentDebugKeystore.exists()) {
         throw GradleException(
             "Missing development keystore ${agentDebugKeystore}. " +
             "Copy the repository's backed-up key to this path (see docs/SIGNING.md) " +
