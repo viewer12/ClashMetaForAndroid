@@ -30,6 +30,15 @@ real protocol details with a long press.
 
 ---
 
+<div align="center">
+
+| | | |
+|:-:|:-:|:-:|
+| <img src="docs/images/home.jpg" width="230"> | <img src="docs/images/assistant-start.jpg" width="230"> | <img src="docs/images/assistant-diagnose.jpg" width="230"> |
+| The assistant sits alongside the usual screens | Three starting points, or just type | A read-only diagnosis in progress |
+
+</div>
+
 ## AI assistant
 
 A tool-calling agent with **32 operations** across profiles, per-app routing, VPN
@@ -92,13 +101,22 @@ stop — and recovers a service the system killed unexpectedly.
 
 ## Install
 
-Download an APK from [**Releases**](../../releases).
+[![Latest release](https://img.shields.io/github/v/release/viewer12/ClashMetaForAndroid?label=latest&color=3ddc84)](../../releases/latest)
+
+Download from [**Releases**](../../releases/latest):
+
+| File | Size | For |
+|---|---|---|
+| `cmfa-<version>-agent-arm64-v8a-release.apk` | ~44 MB | Every phone from roughly 2017 on |
+| `cmfa-<version>-agent-universal-release.apk` | ~105 MB | Anything not arm64 — carries all four ABIs |
+
+Take the arm64 build unless you know you need otherwise.
 
 The package is `io.github.viewer12.cmfa.agent`, so it **installs alongside** an
 existing Clash Meta instead of replacing it. Builds are signed with this fork's own
 key and cannot update an upstream install.
 
-Android 5.0+ (7.0+ recommended), `arm64-v8a`.
+Android 5.0+ (7.0+ recommended).
 
 > [!NOTE]
 > The assistant's own screens are currently Chinese only; the rest of the app is

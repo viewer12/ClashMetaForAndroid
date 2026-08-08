@@ -27,6 +27,15 @@
 
 ---
 
+<div align="center">
+
+| | | |
+|:-:|:-:|:-:|
+| <img src="docs/images/home.jpg" width="230"> | <img src="docs/images/assistant-start.jpg" width="230"> | <img src="docs/images/assistant-diagnose.jpg" width="230"> |
+| 助手与原有功能并列 | 三个快捷入口，也可直接输入 | 正在进行只读诊断 |
+
+</div>
+
 ## AI 助手
 
 一个具备工具调用能力的智能体，覆盖配置文件、应用分流、VPN 设置、代理组、Provider、
@@ -83,12 +92,21 @@ Android Keystore 中的密钥加密存储，并与对话历史一起被排除在
 
 ## 安装
 
-前往 [**Releases**](../../releases) 下载 APK。
+[![Latest release](https://img.shields.io/github/v/release/viewer12/ClashMetaForAndroid?label=latest&color=3ddc84)](../../releases/latest)
+
+前往 [**Releases**](../../releases/latest) 下载：
+
+| 文件 | 大小 | 适用 |
+|---|---|---|
+| `cmfa-<版本>-agent-arm64-v8a-release.apk` | 约 44 MB | 2017 年之后的手机基本都是这个 |
+| `cmfa-<版本>-agent-universal-release.apk` | 约 105 MB | 非 arm64 设备，内含全部四种架构 |
+
+不确定的话选 arm64 那个。
 
 包名是 `io.github.viewer12.cmfa.agent`，因此会**与已安装的 Clash Meta 并存**，
 不会覆盖它。本 fork 使用自有密钥签名，无法用于更新上游版本。
 
-Android 5.0 以上（建议 7.0+），`arm64-v8a`。
+Android 5.0 以上（建议 7.0+）。
 
 ## 隐私
 
