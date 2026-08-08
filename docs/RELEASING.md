@@ -48,7 +48,7 @@ The job builds, then refuses to publish unless all four hold:
 3. the signer fingerprint matches `AGENT_RELEASE_CERT_SHA256`
 4. `geoip.metadb`, `geosite.dat` and `ASN.mmdb` are inside the APK
 
-Check 3 exists because `downloadGeoFiles` is wired to `assemble*` rather than
+Check 4 exists because `downloadGeoFiles` is wired to `assemble*` rather than
 to `mergeAssets`; on a clean checkout the merge can run first and produce an
 APK with no routing data, which looks fine until rules silently stop matching.
 
@@ -92,7 +92,7 @@ from upstream and public — never release with it.
 ## Building a release locally
 
 Only needed when the workflow cannot run. It signs with whatever
-`signing.properties` points at, and performs none of the three checks above.
+`signing.properties` points at, and performs none of the four checks above.
 
 ```bash
 git submodule update --init --recursive
