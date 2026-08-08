@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Derived from values-zh; Hong Kong terminology follows the upstream values-zh-rHK file. -->
+<resources>
+    <string name="agent_title">AI 助手</string>
+    <string name="agent_subtitle_ready">可以創建配置、修改規則或操作代理</string>
+    <string name="agent_not_configured">尚未配置模型，點按設置</string>
+    <string name="agent_input_hint">告訴 AI 你想做什麼…</string>
+    <string name="agent_send">發送</string>
+    <string name="agent_stop">停止</string>
+    <string name="agent_trace_title">思考過程</string>
+    <string name="agent_settings">模型與授權設置</string>
+    <string name="agent_test_connection">測試連接</string>
+    <string name="agent_testing_connection">正在測試…</string>
+    <string name="agent_test_success">連接成功，模型已響應</string>
+    <string name="agent_clear">清空對話</string>
+    <string name="agent_quick_create">從零創建配置</string>
+    <string name="agent_quick_apps">按已安裝應用配置分流</string>
+    <string name="agent_quick_diagnose">檢查當前代理狀態</string>
+
+    <!-- Sent to the model when the corresponding entry point is tapped. -->
+    <string name="agent_prompt_create">請從零開始幫我創建一份可用配置。</string>
+    <string name="agent_prompt_apps">請讀取我安裝的應用，幫我規劃應用級分流。</string>
+    <string name="agent_prompt_diagnose">請檢查當前配置、VPN、網絡、代理組、Provider 和活動連接狀態，診斷明顯問題並給出可執行建議。</string>
+    <string name="agent_base_url">接口地址</string>
+    <string name="agent_api_key">API Key（本地接口可留空）</string>
+    <string name="agent_model">模型名稱</string>
+    <string name="agent_api_format">接口格式</string>
+    <string name="agent_format_chat">Chat Completions</string>
+    <string name="agent_format_responses">Responses API</string>
+    <string name="agent_authorization">操作授權</string>
+    <string name="agent_auth_cautious">謹慎</string>
+    <string name="agent_auth_balanced">均衡</string>
+    <string name="agent_auth_full">完全自動</string>
+    <string name="agent_save">保存</string>
+    <string name="agent_cancel">取消</string>
+    <string name="agent_approve_title">允許 AI 執行操作？</string>
+    <string name="agent_allow_once">允許本次</string>
+    <string name="agent_deny">拒絕</string>
+    <string name="agent_clear_confirm">確定清空全部對話記錄嗎？</string>
+
+    <!-- Run status, shown in the trace header while a run is in flight. -->
+    <string name="agent_status_connecting">正在連接 %1$s…</string>
+    <string name="agent_status_thinking">正在思考</string>
+    <string name="agent_status_replying">正在生成回覆</string>
+    <string name="agent_status_stopped">已停止</string>
+    <string name="agent_step_thinking">思考並規劃第 %1$d 步</string>
+    <string name="agent_trace_running">正在處理</string>
+    <string name="agent_trace_done">已完成</string>
+    <string name="agent_trace_done_writes">已完成 · 寫入 %1$d 項</string>
+    <string name="agent_trace_done_readonly">已完成 · 未修改任何配置</string>
+    <string name="agent_trace_stopped">已停止</string>
+    <string name="agent_trace_failed">未完成</string>
+    <string name="agent_trace_step_count">%1$d 步</string>
+    <string name="agent_trace_expand">展開運行過程</string>
+    <string name="agent_status_auth_cautious">謹慎授權</string>
+    <string name="agent_status_auth_balanced">均衡授權</string>
+    <string name="agent_status_auth_full">全部自動放行</string>
+
+    <!-- Composer / conversation -->
+    <string name="agent_busy_send">AI 正在處理中，請先停止再發送新消息</string>
+    <string name="agent_busy_clear">AI 正在處理中，請先停止再清空</string>
+    <string name="agent_run_failed">操作未完成：%1$s</string>
+    <string name="agent_empty_title">讓 AI 幫你配置代理</string>
+    <string name="agent_empty_summary">它可以讀取並修改配置、調整分流規則、切換節點，也能診斷當前的網絡狀態。涉及改動的操作會先征求你的同意。</string>
+
+    <!-- Approval dialog -->
+    <string name="agent_risk_critical">嚴重：此操作可能不可逆</string>
+    <string name="agent_risk_high">高風險：會改變配置或運行狀態</string>
+    <string name="agent_risk_medium">中等風險：會更新本地或遠程狀態</string>
+    <string name="agent_risk_normal">常規操作</string>
+    <string name="agent_approve_scope">AI 只會獲得本次操作的授權。</string>
+
+    <!-- Settings dialog -->
+    <string name="agent_settings_section_endpoint">模型接口</string>
+    <string name="agent_settings_section_behavior">行為</string>
+    <string name="agent_base_url_helper">兼容 OpenAI 接口的服務地址，例如 https://api.openai.com/v1</string>
+    <string name="agent_api_key_helper">僅保存在本機，並由 Android 密鑰庫加密</string>
+    <string name="agent_model_helper">服務端使用的模型 ID，例如 gpt-4o 或 deepseek-chat</string>
+    <string name="agent_api_format_helper">多數服務使用 Chat Completions</string>
+    <string name="agent_authorization_helper">決定哪些操作在執行前需要你確認</string>
+    <string name="agent_auth_cautious_detail">謹慎 · 任何改動都要確認</string>
+    <string name="agent_auth_balanced_detail">均衡 · 僅高風險改動需確認</string>
+    <string name="agent_auth_full_detail">完全自動 · 不再詢問</string>
+    <string name="agent_connect_failed">連接失敗</string>
+    <string name="agent_save_failed">保存失敗：%1$s</string>
+    <string name="agent_error_url_scheme">請輸入 http:// 或 https:// 地址</string>
+    <string name="agent_error_insecure_url">非本機地址必須使用 HTTPS，明文 HTTP 僅允許連接本機</string>
+    <string name="agent_error_model_empty">請輸入模型名稱</string>
+
+    <!-- Operation labels, shown in approval prompts and the run trace. -->
+    <string name="agent_op_profile_create">創建並驗證配置</string>
+    <string name="agent_op_profile_replace_config">修改並應用配置</string>
+    <string name="agent_op_profile_restore_latest">恢復配置備份</string>
+    <string name="agent_op_profile_activate">切換配置</string>
+    <string name="agent_op_profile_clone">複製配置</string>
+    <string name="agent_op_profile_update_metadata">修改配置資料</string>
+    <string name="agent_op_profile_delete">刪除配置</string>
+    <string name="agent_op_access_control_replace">修改應用訪問控制</string>
+    <string name="agent_op_vpn_settings_update">修改 Android VPN 設置</string>
+    <string name="agent_op_runtime_set_mode">切換運行模式</string>
+    <string name="agent_op_runtime_start">啟動代理</string>
+    <string name="agent_op_runtime_stop">停止代理</string>
+    <string name="agent_op_override_replace">修改客戶端覆寫設置</string>
+    <string name="agent_op_override_clear">清空客戶端覆寫設置</string>
+    <string name="agent_op_proxy_select">切換代理節點</string>
+    <string name="agent_op_proxy_healthcheck">檢測代理</string>
+    <string name="agent_op_provider_refresh">刷新 Provider</string>
+    <string name="agent_op_connection_close">關閉連接</string>
+    <string name="agent_op_connections_close_all">關閉全部連接</string>
+
+    <!-- Engine-level notices. -->
+    <string name="agent_op_with_target">%1$s：%2$s</string>
+    <string name="agent_op_with_yaml">%1$s · 完整 YAML %2$d 行</string>
+    <string name="agent_engine_retrying">模型連接中斷，正在重試（%1$d/%2$d）</string>
+    <string name="agent_engine_round_limit">操作步驟超過 %1$d 輪，已安全停止；請把任務拆小後重試</string>
+    <string name="agent_engine_unsupported_tool">不支持的操作：%1$s</string>
+    <string name="agent_engine_cancelled">已取消：%1$s</string>
+    <string name="agent_engine_op_failed">操作失敗</string>
+    <string name="agent_engine_empty_reply">操作已完成。</string>
+    <string name="agent_engine_not_configured">請先配置模型接口、API Key 和模型名稱</string>
+    <string name="agent_engine_empty_prompt">消息不能為空</string>
+
+    <!-- Tool outcome summaries, shown as run steps. -->
+    <string name="agent_x_profiles_read">已讀取 %1$d 個配置</string>
+    <string name="agent_x_profile_read">已讀取配置“%1$s”</string>
+    <string name="agent_x_default_profile_name">AI 配置</string>
+    <string name="agent_x_profile_missing_after_commit">配置提交後不存在</string>
+    <string name="agent_x_create_failed">配置驗證失敗，未創建：%1$s</string>
+    <string name="agent_x_created">配置“%1$s”已通過驗證</string>
+    <string name="agent_x_sha_mismatch">配置已被其他操作修改（當前 SHA-256 為 %1$s），請重新讀取後再修改</string>
+    <string name="agent_x_unchanged">配置內容沒有變化</string>
+    <string name="agent_x_unreadable_after_commit">提交後無法讀取配置</string>
+    <string name="agent_x_rollback_ok">，原配置已自動恢復</string>
+    <string name="agent_x_apply_failed">配置驗證/應用失敗：%1$s%2$s</string>
+    <string name="agent_x_applied">配置“%1$s”已驗證並安全應用</string>
+    <string name="agent_x_no_backup">沒有可用備份</string>
+    <string name="agent_x_restore_rollback_ok">，恢復前配置已重新應用</string>
+    <string name="agent_x_restore_failed">備份恢復失敗：%1$s%2$s</string>
+    <string name="agent_x_restored">已恢復“%1$s”的最近備份</string>
+    <string name="agent_x_not_imported">配置尚未成功提交，不能啟用</string>
+    <string name="agent_x_activated">已啟用“%1$s”</string>
+    <string name="agent_x_cloned">已複製“%1$s”</string>
+    <string name="agent_x_deleted">已刪除“%1$s”</string>
+    <string name="agent_x_bad_interval">更新間隔必須為 0（禁用）或至少 15 分鐘</string>
+    <string name="agent_x_metadata_failed">配置資料驗證/更新失敗：%1$s</string>
+    <string name="agent_x_metadata_updated">配置“%1$s”的資料已驗證並更新</string>
+    <string name="agent_x_apps_read">已讀取 %1$d 個可路由應用</string>
+    <string name="agent_x_access_read">已讀取應用訪問控制</string>
+    <string name="agent_x_bad_access_mode">訪問控制模式必須是 accept_all、accept_selected 或 deny_selected</string>
+    <string name="agent_x_unknown_packages">以下包名未安裝：%1$s</string>
+    <string name="agent_x_access_applied">已應用應用訪問控制</string>
+    <string name="agent_x_vpn_read">已讀取 Android VPN 設置</string>
+    <string name="agent_x_bad_tun_stack">TUN 棧必須是 system、gvisor 或 mixed</string>
+    <string name="agent_x_no_vpn_changes">沒有提供任何要修改的 VPN 設置</string>
+    <string name="agent_x_vpn_updated">已更新 Android VPN 設置</string>
+    <string name="agent_x_no_network">當前沒有活動網絡</string>
+    <string name="agent_x_network_read">已讀取當前網絡信息</string>
+    <string name="agent_x_no_logs">當前沒有已保存的日誌採集</string>
+    <string name="agent_x_logs_read">已讀取最近 %1$d 行已保存日誌</string>
+    <string name="agent_x_exits_read">已讀取 Android 記錄的 VPN 進程退出歷史</string>
+    <string name="agent_x_runtime_read">已讀取運行狀態</string>
+    <string name="agent_x_already_running">代理已經在運行</string>
+    <string name="agent_x_started">代理已啟動</string>
+    <string name="agent_x_vpn_denied">未獲得 VPN 權限</string>
+    <string name="agent_x_bad_mode">不支持的模式：%1$s</string>
+    <string name="agent_x_mode_set">運行模式已切換為 %1$s</string>
+    <string name="agent_x_already_stopped">代理已經停止</string>
+    <string name="agent_x_vpn_stop_timeout">VPN 未能及時停止</string>
+    <string name="agent_x_stopped">代理已停止</string>
+    <string name="agent_x_override_read">已讀取 %1$s 覆寫設置</string>
+    <string name="agent_x_bad_override_json">覆寫 JSON 無效：%1$s</string>
+    <string name="agent_x_override_applied">已應用 %1$s 覆寫設置</string>
+    <string name="agent_x_override_cleared">已清空 %1$s 覆寫設置</string>
+    <string name="agent_x_groups_read">已讀取代理組</string>
+    <string name="agent_x_bad_selector">代理組或節點不存在，或者該組不可選擇</string>
+    <string name="agent_x_proxy_selected">“%1$s”已切換到“%2$s”</string>
+    <string name="agent_x_healthcheck_done">已完成“%1$s”健康檢查</string>
+    <string name="agent_x_providers_read">已讀取 %1$d 個 Provider</string>
+    <string name="agent_x_bad_provider_type">不支持的 Provider 類型：%1$s</string>
+    <string name="agent_x_provider_refreshed">已刷新 Provider“%1$s”</string>
+    <string name="agent_x_connections_read">已讀取活動連接</string>
+    <string name="agent_x_bad_connection">連接不存在或已經關閉</string>
+    <string name="agent_x_connection_closed">連接已關閉</string>
+    <string name="agent_x_connections_closed">全部活動連接已關閉</string>
+    <string name="agent_x_no_active_profile">當前沒有已啟用配置</string>
+    <string name="agent_x_empty_yaml">YAML 不能為空</string>
+    <string name="agent_x_missing_param">缺少參數 %1$s</string>
+    <string name="agent_x_vpn_stop_timeout_saved">VPN 未能及時停止，設置已保存但尚未生效</string>
+    <string name="agent_x_vpn_restart_failed">設置已保存，但 VPN 重新啟動失敗</string>
+    <string name="agent_x_bad_slot">覆寫槽必須是 session 或 persist</string>
+    <string name="agent_x_created_activated">配置“%1$s”已通過驗證並啟用</string>
+    <string name="agent_x_rollback_failed">，且自動恢復失敗：%1$s</string>
+    <string name="agent_x_restore_rollback_failed">，且回退失敗：%1$s</string>
+    <string name="agent_x_access_applied_restarted">已應用應用訪問控制並重啟 VPN</string>
+    <string name="agent_x_vpn_updated_restarted">已更新 Android VPN 設置並重啟 VPN</string>
+    <string name="agent_x_profile_not_found">找不到配置 %1$s</string>
+</resources>
