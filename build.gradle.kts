@@ -175,11 +175,15 @@ subprojects {
 
             create("agent") {
                 dimension = flavorDimensionList[0]
-                // Without this an agent release reports the same versionName as an
-                // upstream release, so a bug report cannot say which build it came
-                // from. The other flavors already carry .Alpha / .Meta.
+                // Fork release number, appended to the upstream baseline in
+                // versionName above to give e.g. 2.11.32-ai.1. The two move
+                // independently on purpose: versionName tracks the upstream
+                // version this is built on, this tracks releases made from it.
+                // A bare ".AI" could not tell two fork releases apart.
+                // Bump per release; reset to -ai.1 after merging a new upstream.
+                // See docs/RELEASING.md.
                 if (!removeSuffix) {
-                    versionNameSuffix = ".AI"
+                    versionNameSuffix = "-ai.1"
                 }
 
                 buildConfigField("boolean", "PREMIUM", "Boolean.parseBoolean(\"false\")")

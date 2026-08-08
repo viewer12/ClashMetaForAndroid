@@ -1,0 +1,171 @@
+name: Release Agent APK
+
+# Builds signed release APKs for the agent flavour and publishes them as a
+# GitHub Release.
+#
+# Deliberately different from the inherited Build Release workflow in two ways:
+#
+#  * signing.properties gets a keystore.path pointing at a key restored from a
+#    secret. Without it the build falls back to the release.keystore committed
+#    in this repository, which is public — anyone who cracks its password could
+#    then sign an update Android accepts as yours.
+#  * signing.properties is never printed. The upstream workflow cats it, which
+#    puts the signing password in the job log.
+#
+# Required repository secrets:
+#   AGENT_RELEASE_KEYSTORE        base64 of your .keystore file
+#   AGENT_RELEASE_STORE_PASSWORD  its password
+#   AGENT_RELEASE_KEY_ALIAS       key alias (cmfa-ai by default)
+#   AGENT_RELEASE_KEY_PASSWORD    key password
+#   AGENT_RELEASE_CERT_SHA256     expected signer fingerprint, lowercase hex,
+#                                 no colons — guards against signing with the
+#                                 wrong key
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-tag:
+        description: 'Release tag, e.g. v2.11.32-ai.1'
+        required: true
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # versionCode is derived from the commit count, so a shallow clone
+          # would produce a lower number than the previous release and Android
+          # would refuse the update.
+          fetch-depth: 0
+
+      - name: Checkout submodules
+        run: git submodule update --init --recursive --force
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-download-base-url: 'https://github.com/MetaCubeX/go/releases/download/build'
+          go-version: '1.26'
+
+      - name: Apply Go patches
+        run: |
+          cd $(go env GOROOT)
+          for p in $GITHUB_WORKSPACE/.github/patch/*.patch; do patch --verbose -p 1 < "$p"; done
+
+      - uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      - name: Update CA bundle
+        run: |
+          sudo apt-get update && sudo apt-get install ca-certificates
+          sudo update-ca-certificates
+          cp -f /etc/ssl/certs/ca-certificates.crt core/src/foss/golang/clash/component/ca/ca-certificates.crt
+
+      - name: Run unit tests
+        run: ./gradlew --no-daemon :agent:testAgentDebugUnitTest
+
+      - name: Restore release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.AGENT_RELEASE_KEYSTORE }}
+          STORE_PASSWORD: ${{ secrets.AGENT_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AGENT_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.AGENT_RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "::error::AGENT_RELEASE_KEYSTORE is not set"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/keys"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/keys/release.keystore"
+          test -s "$RUNNER_TEMP/keys/release.keystore"
+
+          # keystore.path is what keeps the build off the public key in the repo.
+          # Written with a redirect rather than echoed, so nothing reaches the log.
+          {
+            echo "keystore.path=$RUNNER_TEMP/keys/release.keystore"
+            echo "keystore.password=$STORE_PASSWORD"
+            echo "key.alias=$KEY_ALIAS"
+            echo "key.password=$KEY_PASSWORD"
+          } > signing.properties
+          chmod 600 signing.properties
+          echo "signing.properties written (contents intentionally not printed)"
+
+      - name: Build release APKs
+        run: ./gradlew --no-daemon :app:assembleAgentRelease
+
+      - name: Verify the tag matches the built versionName
+        run: |
+          # Read it back off the artifact rather than out of build.gradle.kts:
+          # this catches a forgotten versionNameSuffix bump, which would
+          # otherwise publish two different releases under one version.
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          APK=$(ls app/build/outputs/apk/agent/release/*arm64-v8a*.apk | head -1)
+          ACTUAL=$("$BUILD_TOOLS/aapt2" dump badging "$APK" \
+            | grep -o "versionName='[^']*'" | head -1 | cut -d"'" -f2)
+          EXPECTED="${{ inputs.release-tag }}"
+          EXPECTED="${EXPECTED#v}"
+          echo "tag=$EXPECTED  apk=$ACTUAL"
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::tag $EXPECTED does not match versionName $ACTUAL — bump versionNameSuffix in build.gradle.kts (see docs/RELEASING.md)"
+            exit 1
+          fi
+
+      - name: Verify signing identity
+        env:
+          EXPECTED: ${{ secrets.AGENT_RELEASE_CERT_SHA256 }}
+        run: |
+          BUILD_TOOLS="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          APK=$(ls app/build/outputs/apk/agent/release/*arm64-v8a*.apk | head -1)
+          ACTUAL=$("$BUILD_TOOLS/apksigner" verify --print-certs "$APK" \
+            | grep -i "certificate SHA-256 digest" | head -1 | awk '{print $NF}' | tr 'A-F' 'a-f')
+          echo "signer: $ACTUAL"
+          if [ -n "$EXPECTED" ] && [ "$ACTUAL" != "$(echo "$EXPECTED" | tr 'A-F' 'a-f')" ]; then
+            echo "::error::signed with an unexpected key"; exit 1
+          fi
+
+      - name: Verify geo assets are bundled
+        run: |
+          # downloadGeoFiles is wired to assemble*, not to mergeAssets, so on a
+          # clean checkout the merge can win the race and ship a build with no
+          # routing data. Fail here rather than release one.
+          APK=$(ls app/build/outputs/apk/agent/release/*arm64-v8a*.apk | head -1)
+          for asset in geoip.metadb geosite.dat ASN.mmdb; do
+            unzip -l "$APK" | grep -q "assets/$asset" \
+              || { echo "::error::$asset missing from the APK"; exit 1; }
+          done
+          echo "geo assets present"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.release-tag }}
+          prerelease: ${{ inputs.prerelease }}
+          # arm64 covers essentially every device still in use; universal
+          # carries all four ABIs for anything that is not arm64, so nobody has
+          # to know their architecture. The other three per-ABI splits are built
+          # (universal is assembled from them) but not published.
+          files: |
+            app/build/outputs/apk/agent/release/*arm64-v8a*.apk
+            app/build/outputs/apk/agent/release/*universal*.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true
