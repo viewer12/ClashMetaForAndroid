@@ -101,13 +101,13 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         root.findViewById<View>(R.id.agent_stop).setOnClickListener { AgentRunController.cancel() }
 
         root.findViewById<View>(R.id.agent_suggest_create).setOnClickListener {
-            submitPrompt("请从零开始帮我创建一份可用配置。", AgentScenario.CREATE)
+            submitPrompt(getString(R.string.agent_prompt_create), AgentScenario.CREATE)
         }
         root.findViewById<View>(R.id.agent_suggest_apps).setOnClickListener {
-            submitPrompt("请读取我安装的应用，帮我规划应用级分流。", AgentScenario.APPS)
+            submitPrompt(getString(R.string.agent_prompt_apps), AgentScenario.APPS)
         }
         root.findViewById<View>(R.id.agent_suggest_diagnose).setOnClickListener {
-            submitPrompt("请检查当前配置、VPN、网络、代理组、Provider 和活动连接状态，诊断明显问题并给出可执行建议。", AgentScenario.DIAGNOSE)
+            submitPrompt(getString(R.string.agent_prompt_diagnose), AgentScenario.DIAGNOSE)
         }
         if (!settingsStore.load().isConfigured) root.post { showSettings() }
     }

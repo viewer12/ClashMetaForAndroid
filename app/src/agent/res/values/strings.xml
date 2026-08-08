@@ -1,83 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default (English) strings for the assistant. Simplified Chinese lives in
+  values-zh; any other locale falls back to this file, which is why it has to be
+  the complete set.
+-->
 <resources>
-    <string name="agent_title">AI 助手</string>
-    <string name="agent_subtitle_ready">可以创建配置、修改规则或操作代理</string>
-    <string name="agent_not_configured">尚未配置模型，点击设置</string>
-    <string name="agent_input_hint">告诉 AI 你想做什么…</string>
-    <string name="agent_send">发送</string>
-    <string name="agent_stop">停止</string>
-    <string name="agent_trace_title">思考过程</string>
-    <string name="agent_settings">模型与授权设置</string>
-    <string name="agent_test_connection">测试连接</string>
-    <string name="agent_testing_connection">正在测试…</string>
-    <string name="agent_test_success">连接成功，模型已响应</string>
-    <string name="agent_clear">清空对话</string>
-    <string name="agent_quick_create">从零创建配置</string>
-    <string name="agent_quick_apps">按已安装应用配置分流</string>
-    <string name="agent_quick_diagnose">检查当前代理状态</string>
-    <string name="agent_base_url">接口地址</string>
-    <string name="agent_api_key">API Key（本地接口可留空）</string>
-    <string name="agent_model">模型名称</string>
-    <string name="agent_api_format">接口格式</string>
+    <string name="agent_title">AI Assistant</string>
+    <string name="agent_subtitle_ready">Create profiles, edit rules, operate proxies</string>
+    <string name="agent_not_configured">No model configured — tap to set up</string>
+    <string name="agent_input_hint">Tell the AI what you want…</string>
+    <string name="agent_send">Send</string>
+    <string name="agent_stop">Stop</string>
+    <string name="agent_trace_title">Reasoning</string>
+    <string name="agent_settings">Model and permissions</string>
+    <string name="agent_test_connection">Test connection</string>
+    <string name="agent_testing_connection">Testing…</string>
+    <string name="agent_test_success">Connected — the model responded</string>
+    <string name="agent_clear">Clear conversation</string>
+    <string name="agent_quick_create">Create a profile from scratch</string>
+    <string name="agent_quick_apps">Plan routing for installed apps</string>
+    <string name="agent_quick_diagnose">Check the current proxy state</string>
+
+    <!-- Sent to the model when the corresponding entry point is tapped. -->
+    <string name="agent_prompt_create">Build me a working configuration from scratch.</string>
+    <string name="agent_prompt_apps">Read my installed apps and plan per-app routing for me.</string>
+    <string name="agent_prompt_diagnose">Check the current configuration, VPN, network, proxy groups, providers and active connections. Diagnose any obvious problems and give me actionable suggestions.</string>
+    <string name="agent_base_url">Endpoint URL</string>
+    <string name="agent_api_key">API key (may be empty for a local endpoint)</string>
+    <string name="agent_model">Model name</string>
+    <string name="agent_api_format">API format</string>
     <string name="agent_format_chat">Chat Completions</string>
     <string name="agent_format_responses">Responses API</string>
-    <string name="agent_authorization">操作授权</string>
-    <string name="agent_auth_cautious">谨慎</string>
-    <string name="agent_auth_balanced">均衡</string>
-    <string name="agent_auth_full">完全自动</string>
-    <string name="agent_save">保存</string>
-    <string name="agent_cancel">取消</string>
-    <string name="agent_approve_title">允许 AI 执行操作？</string>
-    <string name="agent_allow_once">允许本次</string>
-    <string name="agent_deny">拒绝</string>
-    <string name="agent_clear_confirm">确定清空全部对话记录吗？</string>
+    <string name="agent_authorization">Operation approval</string>
+    <string name="agent_auth_cautious">Cautious</string>
+    <string name="agent_auth_balanced">Balanced</string>
+    <string name="agent_auth_full">Full auto</string>
+    <string name="agent_save">Save</string>
+    <string name="agent_cancel">Cancel</string>
+    <string name="agent_approve_title">Allow this operation?</string>
+    <string name="agent_allow_once">Allow once</string>
+    <string name="agent_deny">Deny</string>
+    <string name="agent_clear_confirm">Delete the whole conversation?</string>
 
     <!-- Run status, shown in the trace header while a run is in flight. -->
-    <string name="agent_status_connecting">正在连接 %1$s…</string>
-    <string name="agent_status_thinking">正在思考</string>
-    <string name="agent_status_replying">正在生成回复</string>
-    <string name="agent_status_stopped">已停止</string>
-    <string name="agent_step_thinking">思考并规划第 %1$d 步</string>
-    <string name="agent_trace_running">正在处理</string>
-    <string name="agent_trace_done">已完成</string>
-    <string name="agent_trace_done_writes">已完成 · 写入 %1$d 项</string>
-    <string name="agent_trace_done_readonly">已完成 · 未修改任何配置</string>
-    <string name="agent_trace_stopped">已停止</string>
-    <string name="agent_trace_failed">未完成</string>
-    <string name="agent_trace_step_count">%1$d 步</string>
-    <string name="agent_trace_expand">展开运行过程</string>
-    <string name="agent_status_auth_cautious">谨慎授权</string>
-    <string name="agent_status_auth_balanced">均衡授权</string>
-    <string name="agent_status_auth_full">全部自动放行</string>
+    <string name="agent_status_connecting">Connecting to %1$s…</string>
+    <string name="agent_status_thinking">Thinking</string>
+    <string name="agent_status_replying">Writing a reply</string>
+    <string name="agent_status_stopped">Stopped</string>
+    <string name="agent_step_thinking">Thinking through step %1$d</string>
+    <string name="agent_trace_running">Working</string>
+    <string name="agent_trace_done">Done</string>
+    <string name="agent_trace_done_writes">Done · %1$d change(s) written</string>
+    <string name="agent_trace_done_readonly">Done · nothing was changed</string>
+    <string name="agent_trace_stopped">Stopped</string>
+    <string name="agent_trace_failed">Did not finish</string>
+    <string name="agent_trace_step_count">%1$d steps</string>
+    <string name="agent_trace_expand">Show the steps</string>
+    <string name="agent_status_auth_cautious">Cautious approval</string>
+    <string name="agent_status_auth_balanced">Balanced approval</string>
+    <string name="agent_status_auth_full">Everything runs automatically</string>
 
     <!-- Composer / conversation -->
-    <string name="agent_busy_send">AI 正在处理中，请先停止再发送新消息</string>
-    <string name="agent_busy_clear">AI 正在处理中，请先停止再清空</string>
-    <string name="agent_run_failed">操作未完成：%1$s</string>
-    <string name="agent_empty_title">让 AI 帮你配置代理</string>
-    <string name="agent_empty_summary">它可以读取并修改配置、调整分流规则、切换节点，也能诊断当前的网络状态。涉及改动的操作会先征求你的同意。</string>
+    <string name="agent_busy_send">Still working — stop it before sending another message</string>
+    <string name="agent_busy_clear">Still working — stop it before clearing</string>
+    <string name="agent_run_failed">Did not finish: %1$s</string>
+    <string name="agent_empty_title">Let the AI set up your proxy</string>
+    <string name="agent_empty_summary">It can read and change your configuration, adjust routing rules and switch nodes, and diagnose the current network state. Anything that makes a change asks you first.</string>
 
     <!-- Approval dialog -->
-    <string name="agent_risk_critical">严重：此操作可能不可逆</string>
-    <string name="agent_risk_high">高风险：会改变配置或运行状态</string>
-    <string name="agent_risk_medium">中等风险：会更新本地或远程状态</string>
-    <string name="agent_risk_normal">常规操作</string>
-    <string name="agent_approve_scope">AI 只会获得本次操作的授权。</string>
+    <string name="agent_risk_critical">Critical: this may not be reversible</string>
+    <string name="agent_risk_high">High risk: changes configuration or running state</string>
+    <string name="agent_risk_medium">Medium risk: updates local or remote state</string>
+    <string name="agent_risk_normal">Routine operation</string>
+    <string name="agent_approve_scope">This grants permission for this operation only.</string>
 
     <!-- Settings dialog -->
-    <string name="agent_settings_section_endpoint">模型接口</string>
-    <string name="agent_settings_section_behavior">行为</string>
-    <string name="agent_base_url_helper">兼容 OpenAI 接口的服务地址，例如 https://api.openai.com/v1</string>
-    <string name="agent_api_key_helper">仅保存在本机，并由 Android 密钥库加密</string>
-    <string name="agent_model_helper">服务端使用的模型 ID，例如 gpt-4o 或 deepseek-chat</string>
-    <string name="agent_api_format_helper">多数服务使用 Chat Completions</string>
-    <string name="agent_authorization_helper">决定哪些操作在执行前需要你确认</string>
-    <string name="agent_auth_cautious_detail">谨慎 · 任何改动都要确认</string>
-    <string name="agent_auth_balanced_detail">均衡 · 仅高风险改动需确认</string>
-    <string name="agent_auth_full_detail">完全自动 · 不再询问</string>
-    <string name="agent_connect_failed">连接失败</string>
-    <string name="agent_save_failed">保存失败：%1$s</string>
-    <string name="agent_error_url_scheme">请输入 http:// 或 https:// 地址</string>
-    <string name="agent_error_insecure_url">非本机地址必须使用 HTTPS，明文 HTTP 仅允许连接本机</string>
-    <string name="agent_error_model_empty">请输入模型名称</string>
+    <string name="agent_settings_section_endpoint">Model endpoint</string>
+    <string name="agent_settings_section_behavior">Behaviour</string>
+    <string name="agent_base_url_helper">An OpenAI-compatible endpoint, e.g. https://api.openai.com/v1</string>
+    <string name="agent_api_key_helper">Kept on this device only, encrypted by the Android Keystore</string>
+    <string name="agent_model_helper">The model ID your provider expects, e.g. gpt-4o or deepseek-chat</string>
+    <string name="agent_api_format_helper">Most providers use Chat Completions</string>
+    <string name="agent_authorization_helper">Decides which operations need your confirmation first</string>
+    <string name="agent_auth_cautious_detail">Cautious · confirm every change</string>
+    <string name="agent_auth_balanced_detail">Balanced · confirm high-risk changes only</string>
+    <string name="agent_auth_full_detail">Full auto · never ask</string>
+    <string name="agent_connect_failed">Connection failed</string>
+    <string name="agent_save_failed">Could not save: %1$s</string>
+    <string name="agent_error_url_scheme">Enter an http:// or https:// address</string>
+    <string name="agent_error_insecure_url">Non-local addresses must use HTTPS; plain HTTP is allowed for this device only</string>
+    <string name="agent_error_model_empty">Enter a model name</string>
 </resources>
