@@ -130,6 +130,21 @@ jobs:
             exit 1
           fi
 
+      - name: Verify filenames carry the version
+        run: |
+          # The version has to be in the filename, not just inside the APK:
+          # two releases downloaded to the same folder must not collide, and a
+          # bug report quoting a filename must identify one build.
+          VERSION="${{ inputs.release-tag }}"
+          VERSION="${VERSION#v}"
+          for f in app/build/outputs/apk/agent/release/*.apk; do
+            case "$(basename "$f")" in
+              *"$VERSION"*) ;;
+              *) echo "::error::$(basename "$f") does not contain $VERSION"; exit 1 ;;
+            esac
+          done
+          echo "filenames carry $VERSION"
+
       - name: Verify signing identity
         env:
           EXPECTED: ${{ secrets.AGENT_RELEASE_CERT_SHA256 }}

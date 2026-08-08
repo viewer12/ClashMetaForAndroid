@@ -41,11 +41,12 @@ different builds under one version.
 Actions → **Release Agent APK** → Run workflow → enter the tag, e.g.
 `v2.11.32-ai.1`.
 
-The job builds, then refuses to publish unless all three hold:
+The job builds, then refuses to publish unless all four hold:
 
 1. versionName in the APK matches the tag
-2. the signer fingerprint matches `AGENT_RELEASE_CERT_SHA256`
-3. `geoip.metadb`, `geosite.dat` and `ASN.mmdb` are inside the APK
+2. every APK filename contains that version
+3. the signer fingerprint matches `AGENT_RELEASE_CERT_SHA256`
+4. `geoip.metadb`, `geosite.dat` and `ASN.mmdb` are inside the APK
 
 Check 3 exists because `downloadGeoFiles` is wired to `assemble*` rather than
 to `mergeAssets`; on a clean checkout the merge can run first and produce an
@@ -55,8 +56,14 @@ APK with no routing data, which looks fine until rules silently stop matching.
 
 | APK | Size | Who it is for |
 |---|---|---|
-| `…-arm64-v8a-release.apk` | ~42 MB | Every phone from roughly 2017 on |
-| `…-universal-release.apk` | ~100 MB | Anything not arm64 — carries all four ABIs |
+| `cmfa-<version>-agent-arm64-v8a-release.apk` | ~44 MB | Every phone from roughly 2017 on |
+| `cmfa-<version>-agent-universal-release.apk` | ~100 MB | Anything not arm64 — carries all four ABIs |
+
+`<version>` is the full versionName including the fork release number, e.g.
+`cmfa-2.11.32-ai.1-agent-arm64-v8a-release.apk`. Check 2 above exists because
+`archivesBaseName` is fixed before flavour suffixes are applied, so the naming
+is overridden per variant; if that override is ever lost, two releases would
+ship under one filename.
 
 `armeabi-v7a`, `x86` and `x86_64` are built (universal is assembled from them)
 but not published: a 32-bit or x86 user is served by universal without having

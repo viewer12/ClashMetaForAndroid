@@ -332,6 +332,23 @@ subprojects {
                     include(*targetAbis.toTypedArray())
                 }
             }
+
+            // archivesBaseName is fixed at defaultConfig time, before flavor
+            // suffixes exist, so it produced cmfa-2.11.32-… for every fork
+            // release — two releases, identical filenames, colliding in a
+            // downloads folder. variant.versionName is the resolved one.
+            applicationVariants.all {
+                val variant = this
+                outputs.all {
+                    val abi = filters
+                        .find { it.filterType == com.android.build.OutputFile.ABI }
+                        ?.identifier
+                        ?: "universal"
+                    (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl)
+                        .outputFileName =
+                        "cmfa-${variant.versionName}-${variant.flavorName}-$abi-${variant.buildType.name}.apk"
+                }
+            }
         }
 
         compileOptions {
