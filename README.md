@@ -42,11 +42,9 @@ bundled core, keeps backups, and rolls back if a change fails to apply.
 
 **Three starting points**, or just type what you want:
 
-| | |
-|---|---|
-| 从零创建配置 | Build a working profile from scratch |
-| 按已安装应用配置分流 | Plan per-app routing from your real installed apps |
-| 检查当前代理状态 | Read-only diagnosis of config, VPN, network and connections |
+- **Create a profile from scratch** — builds a working config, asking for what it needs
+- **Plan per-app routing** — reads your actually-installed apps and proposes a split
+- **Diagnose the current setup** — read-only pass over config, VPN, network and connections
 
 ### It asks before it changes things
 
@@ -55,9 +53,9 @@ code** from that level, so no prompt can talk its way past it.
 
 | Mode | Behaviour |
 |---|---|
-| **谨慎** Cautious | Every change needs confirmation |
-| **均衡** Balanced *(default)* | Routine changes run; high-risk ones ask |
-| **完全自动** Full auto | Nothing asks |
+| Cautious | Every change needs confirmation |
+| Balanced *(default)* | Routine changes run; high-risk ones ask |
+| Full auto | Nothing asks |
 
 Read-only operations always run. Approval is granted per operation — never "always
 allow". If the screen is closed while a run is waiting for approval, the operation
@@ -65,10 +63,10 @@ is denied rather than silently performed.
 
 ### It reports what actually happened
 
-The run header is built from tool results, not from the model's prose — so it reads
-`已完成 · 写入 2 项` or `已完成 · 未修改任何配置`. If a reply claims a change that
-never executed, the header contradicts it. Expanding the card shows every step and
-its outcome.
+The run header is built from tool results, not from the model's prose — it states
+either how many writes landed or that nothing was changed. If a reply claims a
+change that never executed, the header contradicts it. Expanding the card shows
+every step and its outcome.
 
 That record is also replayed to the model on later turns, so a turn that only
 *claimed* to have written something cannot become evidence that it did.
@@ -101,6 +99,11 @@ existing Clash Meta instead of replacing it. Builds are signed with this fork's 
 key and cannot update an upstream install.
 
 Android 5.0+ (7.0+ recommended), `arm64-v8a`.
+
+> [!NOTE]
+> The assistant's own screens are currently Chinese only; the rest of the app is
+> localised as upstream ships it. The model replies in whatever language you write
+> in.
 
 ## Privacy
 
