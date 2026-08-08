@@ -7,8 +7,10 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import androidx.annotation.StringRes
 import androidx.core.content.getSystemService
 import com.github.kr328.clash.BuildConfig
+import com.github.kr328.clash.R
 import com.github.kr328.clash.core.Clash
 import com.github.kr328.clash.agent.model.AgentToolExecutionResult
 import com.github.kr328.clash.agent.runtime.AgentToolExecutor
@@ -84,7 +86,7 @@ class AndroidAgentToolExecutor(
         "connections_list" -> connectionsList()
         "connection_close" -> connectionClose(arguments)
         "connections_close_all" -> connectionsCloseAll()
-        else -> AgentToolExecutionResult(false, "Unknown tool: $name", "不支持的操作：$name")
+        else -> AgentToolExecutionResult(false, "Unknown tool: $name", str(R.string.agent_engine_unsupported_tool, name))
     }
 
     private suspend fun profilesList(): AgentToolExecutionResult {
@@ -104,7 +106,7 @@ class AndroidAgentToolExecutor(
                 }
             })
         }
-        return ok(body.toString(), "已读取 ${profiles.size} 个配置")
+        return ok(body.toString(), str(R.string.agent_x_profiles_read, profiles.size))
     }
 
     private suspend fun profileRead(arguments: JsonObject): AgentToolExecutionResult {
@@ -117,11 +119,11 @@ class AndroidAgentToolExecutor(
             put("sha256", AgentBackupStore.sha256(yaml))
             put("yaml", yaml)
         }
-        return ok(body.toString(), "已读取配置“${profile.name}”")
+        return ok(body.toString(), str(R.string.agent_x_profile_read, profile.name))
     }
 
     private suspend fun profileCreate(arguments: JsonObject): AgentToolExecutionResult {
-        val name = arguments.requiredString("name").trim().take(80).ifBlank { "AI 配置" }
+        val name = arguments.requiredString("name").trim().take(80).ifBlank { str(R.string.agent_x_default_profile_name) }
         val yaml = normalizeYaml(arguments.requiredString("yaml"))
         val activate = arguments.optionalBoolean("activate") ?: true
         val uuid = withProfile { create(Profile.Type.File, name) }
@@ -129,12 +131,12 @@ class AndroidAgentToolExecutor(
             withProfile {
                 writeProfileConfig(uuid, yaml)
                 commit(uuid)
-                val profile = queryByUUID(uuid) ?: error("配置提交后不存在")
+                val profile = queryByUUID(uuid) ?: error(str(R.string.agent_x_profile_missing_after_commit))
                 if (activate) setActive(profile)
             }
         } catch (error: Throwable) {
             runCatching { withProfile { delete(uuid) } }
-            throw IllegalArgumentException("配置验证失败，未创建：${error.message}", error)
+            throw IllegalArgumentException(str(R.string.agent_x_create_failed, error.message ?: ""), error)
         }
         val body = buildJsonObject {
             put("profile_id", uuid.toString())
@@ -143,7 +145,7 @@ class AndroidAgentToolExecutor(
             put("sha256", AgentBackupStore.sha256(yaml))
             put("validated", true)
         }
-        return ok(body.toString(), "配置“$name”已通过验证${if (activate) "并启用" else ""}")
+        return ok(body.toString(), str(if (activate) R.string.agent_x_created_activated else R.string.agent_x_created, name))
     }
 
     private suspend fun profileReplace(arguments: JsonObject): AgentToolExecutionResult {
@@ -154,11 +156,11 @@ class AndroidAgentToolExecutor(
         val current = readProfileConfig(profile.uuid)
         val currentHash = AgentBackupStore.sha256(current)
         require(currentHash.equals(expected, ignoreCase = true)) {
-            "配置已被其他操作修改（当前 SHA-256 为 $currentHash），请重新读取后再修改"
+            str(R.string.agent_x_sha_mismatch, currentHash)
         }
         if (current == replacement) return ok(
             "{\"unchanged\":true,\"sha256\":\"$currentHash\"}",
-            "配置内容没有变化",
+            str(R.string.agent_x_unchanged),
         )
 
         backups.create(profile.uuid, current)
@@ -168,7 +170,7 @@ class AndroidAgentToolExecutor(
                 writeProfileConfig(profile.uuid, replacement, expected)
                 replacementWritten = true
                 commit(profile.uuid)
-                val committed = queryByUUID(profile.uuid) ?: error("提交后无法读取配置")
+                val committed = queryByUUID(profile.uuid) ?: error(str(R.string.agent_x_unreadable_after_commit))
                 if (activate) setActive(committed)
             }
         } catch (error: Throwable) {
@@ -179,8 +181,8 @@ class AndroidAgentToolExecutor(
                     if (profile.active) queryByUUID(profile.uuid)?.let { setActive(it) }
                 }
             } else Result.success(Unit)
-            val suffix = if (rollback.isSuccess) "，原配置已自动恢复" else "，且自动恢复失败：${rollback.exceptionOrNull()?.message}"
-            throw IllegalArgumentException("配置验证/应用失败：${error.message}$suffix", error)
+            val suffix = if (rollback.isSuccess) str(R.string.agent_x_rollback_ok) else str(R.string.agent_x_rollback_failed, rollback.exceptionOrNull()?.message ?: "")
+            throw IllegalArgumentException(str(R.string.agent_x_apply_failed, error.message ?: "", suffix), error)
         }
 
         val newHash = AgentBackupStore.sha256(replacement)
@@ -191,12 +193,12 @@ class AndroidAgentToolExecutor(
             put("backup_created", true)
             put("active", activate)
         }
-        return ok(body.toString(), "配置“${profile.name}”已验证并安全应用")
+        return ok(body.toString(), str(R.string.agent_x_applied, profile.name))
     }
 
     private suspend fun profileRestore(arguments: JsonObject): AgentToolExecutionResult {
         val profile = resolveProfile(arguments.requiredString("profile_id"))
-        val backup = backups.latest(profile.uuid) ?: error("没有可用备份")
+        val backup = backups.latest(profile.uuid) ?: error(str(R.string.agent_x_no_backup))
         val current = readProfileConfig(profile.uuid)
         val content = backups.read(backup)
         backups.create(profile.uuid, current)
@@ -214,32 +216,32 @@ class AndroidAgentToolExecutor(
                     if (profile.active) queryByUUID(profile.uuid)?.let { setActive(it) }
                 }
             }
-            val suffix = if (rollback.isSuccess) "，恢复前配置已重新应用" else "，且回退失败：${rollback.exceptionOrNull()?.message}"
-            throw IllegalArgumentException("备份恢复失败：${error.message}$suffix", error)
+            val suffix = if (rollback.isSuccess) str(R.string.agent_x_restore_rollback_ok) else str(R.string.agent_x_restore_rollback_failed, rollback.exceptionOrNull()?.message ?: "")
+            throw IllegalArgumentException(str(R.string.agent_x_restore_failed, error.message ?: "", suffix), error)
         }
         return ok(
             "{\"restored\":true,\"sha256\":\"${backup.sha256}\",\"timestamp\":${backup.timestamp}}",
-            "已恢复“${profile.name}”的最近备份",
+            str(R.string.agent_x_restored, profile.name),
         )
     }
 
     private suspend fun profileActivate(arguments: JsonObject): AgentToolExecutionResult {
         val profile = resolveProfile(arguments.requiredString("profile_id"))
-        require(profile.imported) { "配置尚未成功提交，不能启用" }
+        require(profile.imported) { str(R.string.agent_x_not_imported) }
         withProfile { setActive(profile) }
-        return ok("{\"active_profile_id\":\"${profile.uuid}\"}", "已启用“${profile.name}”")
+        return ok("{\"active_profile_id\":\"${profile.uuid}\"}", str(R.string.agent_x_activated, profile.name))
     }
 
     private suspend fun profileClone(arguments: JsonObject): AgentToolExecutionResult {
         val source = resolveProfile(arguments.requiredString("profile_id"))
         val uuid = withProfile { clone(source.uuid) }
-        return ok("{\"profile_id\":\"$uuid\",\"pending\":true}", "已复制“${source.name}”")
+        return ok("{\"profile_id\":\"$uuid\",\"pending\":true}", str(R.string.agent_x_cloned, source.name))
     }
 
     private suspend fun profileDelete(arguments: JsonObject): AgentToolExecutionResult {
         val profile = resolveProfile(arguments.requiredString("profile_id"))
         withProfile { delete(profile.uuid) }
-        return ok("{\"deleted_profile_id\":\"${profile.uuid}\"}", "已删除“${profile.name}”")
+        return ok("{\"deleted_profile_id\":\"${profile.uuid}\"}", str(R.string.agent_x_deleted, profile.name))
     }
 
     private suspend fun profileUpdateMetadata(arguments: JsonObject): AgentToolExecutionResult {
@@ -247,7 +249,7 @@ class AndroidAgentToolExecutor(
         val name = arguments.optionalString("name")?.trim()?.take(80)?.takeIf(String::isNotBlank) ?: profile.name
         val source = arguments.optionalString("source")?.trim() ?: profile.source
         val interval = arguments.optionalLong("update_interval_minutes")?.let { minutes ->
-            require(minutes == 0L || minutes in 15..525_600) { "更新间隔必须为 0（禁用）或至少 15 分钟" }
+            require(minutes == 0L || minutes in 15..525_600) { str(R.string.agent_x_bad_interval) }
             java.util.concurrent.TimeUnit.MINUTES.toMillis(minutes)
         } ?: profile.interval
         try {
@@ -265,7 +267,7 @@ class AndroidAgentToolExecutor(
                     }
                 }
             }
-            throw IllegalArgumentException("配置资料验证/更新失败：${error.message}", error)
+            throw IllegalArgumentException(str(R.string.agent_x_metadata_failed, error.message ?: ""), error)
         }
         return ok(
             buildJsonObject {
@@ -275,7 +277,7 @@ class AndroidAgentToolExecutor(
                 put("update_interval_minutes", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(interval))
                 put("validated", true)
             }.toString(),
-            "配置“$name”的资料已验证并更新",
+            str(R.string.agent_x_metadata_updated, name),
         )
     }
 
@@ -308,7 +310,7 @@ class AndroidAgentToolExecutor(
                 }) }
             })
         }
-        return ok(body.toString(), "已读取 ${packages.size} 个可路由应用")
+        return ok(body.toString(), str(R.string.agent_x_apps_read, packages.size))
     }
 
     private fun accessControlRead(): AgentToolExecutionResult {
@@ -316,7 +318,7 @@ class AndroidAgentToolExecutor(
         return ok(buildJsonObject {
             put("mode", accessModeName(store.accessControlMode))
             put("packages", buildJsonArray { store.accessControlPackages.sorted().forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) } })
-        }.toString(), "已读取应用访问控制")
+        }.toString(), str(R.string.agent_x_access_read))
     }
 
     private suspend fun accessControlReplace(arguments: JsonObject): AgentToolExecutionResult {
@@ -324,13 +326,13 @@ class AndroidAgentToolExecutor(
             "accept_all" -> AccessControlMode.AcceptAll
             "accept_selected" -> AccessControlMode.AcceptSelected
             "deny_selected" -> AccessControlMode.DenySelected
-            else -> error("访问控制模式必须是 accept_all、accept_selected 或 deny_selected")
+            else -> error(str(R.string.agent_x_bad_access_mode))
         }
         val packages = arguments["packages"]?.jsonArray?.map { it.jsonPrimitive.content }?.toSet()
-            ?: error("缺少参数 packages")
+            ?: error(str(R.string.agent_x_missing_param, "packages"))
         val installed = installedPackageNames()
         val unknown = packages - installed
-        require(unknown.isEmpty()) { "以下包名未安装：${unknown.take(12).joinToString()}" }
+        require(unknown.isEmpty()) { str(R.string.agent_x_unknown_packages, unknown.take(12).joinToString()) }
         val store = ServiceStore(context)
         val selected = if (mode == AccessControlMode.AcceptAll) emptySet() else packages
         val changed = store.accessControlMode != mode || store.accessControlPackages != selected
@@ -341,7 +343,7 @@ class AndroidAgentToolExecutor(
             put("mode", accessModeName(mode))
             put("package_count", store.accessControlPackages.size)
             put("vpn_restarted", restarted)
-        }.toString(), "已应用应用访问控制${if (restarted) "并重启 VPN" else ""}")
+        }.toString(), str(if (restarted) R.string.agent_x_access_applied_restarted else R.string.agent_x_access_applied))
     }
 
     private fun vpnSettingsRead(): AgentToolExecutionResult {
@@ -356,7 +358,7 @@ class AndroidAgentToolExecutor(
             put("allow_ipv6", service.allowIpv6)
             put("tun_stack_mode", service.tunStackMode)
             put("dynamic_notification", service.dynamicNotification)
-        }.toString(), "已读取 Android VPN 设置")
+        }.toString(), str(R.string.agent_x_vpn_read))
     }
 
     private suspend fun vpnSettingsUpdate(arguments: JsonObject): AgentToolExecutionResult {
@@ -371,21 +373,21 @@ class AndroidAgentToolExecutor(
         arguments.optionalBoolean("allow_ipv6")?.let { changed = changed || service.allowIpv6 != it; service.allowIpv6 = it }
         arguments.optionalBoolean("dynamic_notification")?.let { changed = changed || service.dynamicNotification != it; service.dynamicNotification = it }
         arguments.optionalString("tun_stack_mode")?.lowercase()?.let {
-            require(it in setOf("system", "gvisor", "mixed")) { "TUN 栈必须是 system、gvisor 或 mixed" }
+            require(it in setOf("system", "gvisor", "mixed")) { str(R.string.agent_x_bad_tun_stack) }
             changed = changed || service.tunStackMode != it
             service.tunStackMode = it
         }
-        require(changed || arguments.keys.any { it != "restart_if_running" }) { "没有提供任何要修改的 VPN 设置" }
+        require(changed || arguments.keys.any { it != "restart_if_running" }) { str(R.string.agent_x_no_vpn_changes) }
         val restarted = restartIfRequested(changed && (arguments.optionalBoolean("restart_if_running") ?: true))
         return ok(buildJsonObject {
             put("updated", changed)
             put("vpn_restarted", restarted)
-        }.toString(), "已更新 Android VPN 设置${if (restarted) "并重启 VPN" else ""}")
+        }.toString(), str(if (restarted) R.string.agent_x_vpn_updated_restarted else R.string.agent_x_vpn_updated))
     }
 
     private fun networkInfo(): AgentToolExecutionResult {
         val connectivity = checkNotNull(context.getSystemService<ConnectivityManager>())
-        val network = connectivity.activeNetwork ?: return ok("{\"connected\":false}", "当前没有活动网络")
+        val network = connectivity.activeNetwork ?: return ok("{\"connected\":false}", str(R.string.agent_x_no_network))
         val capabilities = connectivity.getNetworkCapabilities(network)
         val links = connectivity.getLinkProperties(network)
         val transports = buildList {
@@ -403,25 +405,25 @@ class AndroidAgentToolExecutor(
             put("dns_servers", buildJsonArray { links?.dnsServers?.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.hostAddress.orEmpty())) } })
             put("routes", buildJsonArray { links?.routes?.take(32)?.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.toString())) } })
         }
-        return ok(body.toString(), "已读取当前网络信息")
+        return ok(body.toString(), str(R.string.agent_x_network_read))
     }
 
     private fun logsRecent(): AgentToolExecutionResult {
         val file = context.cacheDir.resolve("logs").listFiles()
             ?.filter(File::isFile)?.maxByOrNull(File::lastModified)
-            ?: return ok("{\"available\":false,\"lines\":[]}", "当前没有已保存的日志采集")
+            ?: return ok("{\"available\":false,\"lines\":[]}", str(R.string.agent_x_no_logs))
         val lines = file.useLines { sequence -> sequence.takeLastBounded(300) }
         val body = buildJsonObject {
             put("available", true)
             put("file", file.name)
             put("lines", buildJsonArray { lines.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.take(2000))) } })
         }
-        return ok(body.toString().take(120_000), "已读取最近 ${lines.size} 行已保存日志")
+        return ok(body.toString().take(120_000), str(R.string.agent_x_logs_read, lines.size))
     }
 
     private fun appExitHistory(): AgentToolExecutionResult {
         val body = ProcessExitDiagnostics.read(context)
-        return ok(body, "已读取 Android 记录的 VPN 进程退出历史")
+        return ok(body, str(R.string.agent_x_exits_read))
     }
 
     private suspend fun runtimeStatus(): AgentToolExecutionResult {
@@ -441,37 +443,37 @@ class AndroidAgentToolExecutor(
                 put("provider_count", queryProviders().size)
             }
         }
-        return ok(body.toString(), "已读取运行状态")
+        return ok(body.toString(), str(R.string.agent_x_runtime_read))
     }
 
     private suspend fun runtimeStart(): AgentToolExecutionResult {
-        if (Remote.broadcasts.clashRunning) return ok("{\"started\":true,\"already_running\":true}", "代理已经在运行")
+        if (Remote.broadcasts.clashRunning) return ok("{\"started\":true,\"already_running\":true}", str(R.string.agent_x_already_running))
         val started = startVpn()
-        return if (started) ok("{\"started\":true}", "代理已启动")
-        else AgentToolExecutionResult(false, "{\"started\":false,\"reason\":\"vpn_permission_denied\"}", "未获得 VPN 权限")
+        return if (started) ok("{\"started\":true}", str(R.string.agent_x_started))
+        else AgentToolExecutionResult(false, "{\"started\":false,\"reason\":\"vpn_permission_denied\"}", str(R.string.agent_x_vpn_denied))
     }
 
     private suspend fun runtimeSetMode(arguments: JsonObject): AgentToolExecutionResult {
         val requested = arguments.requiredString("mode")
         val mode = TunnelState.Mode.entries.firstOrNull { it.name.equals(requested, true) }
-            ?: error("不支持的模式：$requested")
+            ?: error(str(R.string.agent_x_bad_mode, requested))
         withClash {
             val override = queryOverride(Clash.OverrideSlot.Session)
             override.mode = mode
             patchOverride(Clash.OverrideSlot.Session, override)
         }
-        return ok("{\"mode\":${quote(mode.name.lowercase())}}", "运行模式已切换为 ${mode.name}")
+        return ok("{\"mode\":${quote(mode.name.lowercase())}}", str(R.string.agent_x_mode_set, mode.name))
     }
 
     private suspend fun runtimeStop(): AgentToolExecutionResult {
-        if (!Remote.broadcasts.clashRunning) return ok("{\"stopped\":true,\"already_stopped\":true}", "代理已经停止")
+        if (!Remote.broadcasts.clashRunning) return ok("{\"stopped\":true,\"already_stopped\":true}", str(R.string.agent_x_already_stopped))
         stopVpn()
         for (attempt in 0 until 50) {
             if (!Remote.broadcasts.clashRunning) break
             delay(100)
         }
-        require(!Remote.broadcasts.clashRunning) { "VPN 未能及时停止" }
-        return ok("{\"stopped\":true}", "代理已停止")
+        require(!Remote.broadcasts.clashRunning) { str(R.string.agent_x_vpn_stop_timeout) }
+        return ok("{\"stopped\":true}", str(R.string.agent_x_stopped))
     }
 
     private suspend fun overrideRead(arguments: JsonObject): AgentToolExecutionResult {
@@ -480,7 +482,7 @@ class AndroidAgentToolExecutor(
         val content = OVERRIDE_JSON.encodeToString(ConfigurationOverride.serializer(), value)
         return ok(
             buildJsonObject { put("slot", slot.name.lowercase()); put("override", Json.parseToJsonElement(content)) }.toString(),
-            "已读取 ${slot.name.lowercase()} 覆写设置",
+            str(R.string.agent_x_override_read, slot.name.lowercase()),
         )
     }
 
@@ -488,15 +490,15 @@ class AndroidAgentToolExecutor(
         val slot = overrideSlot(arguments.requiredString("slot"))
         val raw = arguments.requiredString("json")
         val value = runCatching { OVERRIDE_JSON.decodeFromString(ConfigurationOverride.serializer(), raw) }
-            .getOrElse { throw IllegalArgumentException("覆写 JSON 无效：${it.message}", it) }
+            .getOrElse { throw IllegalArgumentException(str(R.string.agent_x_bad_override_json, it.message ?: ""), it) }
         withClash { patchOverride(slot, value) }
-        return ok("{\"slot\":${quote(slot.name.lowercase())},\"applied\":true}", "已应用 ${slot.name.lowercase()} 覆写设置")
+        return ok("{\"slot\":${quote(slot.name.lowercase())},\"applied\":true}", str(R.string.agent_x_override_applied, slot.name.lowercase()))
     }
 
     private suspend fun overrideClear(arguments: JsonObject): AgentToolExecutionResult {
         val slot = overrideSlot(arguments.requiredString("slot"))
         withClash { clearOverride(slot) }
-        return ok("{\"slot\":${quote(slot.name.lowercase())},\"cleared\":true}", "已清空 ${slot.name.lowercase()} 覆写设置")
+        return ok("{\"slot\":${quote(slot.name.lowercase())},\"cleared\":true}", str(R.string.agent_x_override_cleared, slot.name.lowercase()))
     }
 
     private suspend fun proxyGroups(): AgentToolExecutionResult {
@@ -517,21 +519,21 @@ class AndroidAgentToolExecutor(
                 })
             }
         }
-        return ok(body.toString(), "已读取代理组")
+        return ok(body.toString(), str(R.string.agent_x_groups_read))
     }
 
     private suspend fun proxySelect(arguments: JsonObject): AgentToolExecutionResult {
         val group = arguments.requiredString("group")
         val proxy = arguments.requiredString("proxy")
         val changed = withClash { patchSelector(group, proxy) }
-        require(changed) { "代理组或节点不存在，或者该组不可选择" }
-        return ok("{\"group\":${quote(group)},\"selected\":${quote(proxy)}}", "“$group”已切换到“$proxy”")
+        require(changed) { str(R.string.agent_x_bad_selector) }
+        return ok("{\"group\":${quote(group)},\"selected\":${quote(proxy)}}", str(R.string.agent_x_proxy_selected, group, proxy))
     }
 
     private suspend fun proxyHealthcheck(arguments: JsonObject): AgentToolExecutionResult {
         val group = arguments.requiredString("group")
         withClash { healthCheck(group) }
-        return ok("{\"group\":${quote(group)},\"checked\":true}", "已完成“$group”健康检查")
+        return ok("{\"group\":${quote(group)},\"checked\":true}", str(R.string.agent_x_healthcheck_done, group))
     }
 
     private suspend fun providersList(): AgentToolExecutionResult {
@@ -546,38 +548,38 @@ class AndroidAgentToolExecutor(
                 }) }
             })
         }
-        return ok(body.toString(), "已读取 ${providers.size} 个 Provider")
+        return ok(body.toString(), str(R.string.agent_x_providers_read, providers.size))
     }
 
     private suspend fun providerRefresh(arguments: JsonObject): AgentToolExecutionResult {
         val requestedType = arguments.requiredString("type")
         val type = Provider.Type.entries.firstOrNull { it.name.equals(requestedType, true) }
-            ?: error("不支持的 Provider 类型：$requestedType")
+            ?: error(str(R.string.agent_x_bad_provider_type, requestedType))
         val name = arguments.requiredString("name")
         withClash { updateProvider(type, name) }
-        return ok("{\"updated\":true}", "已刷新 Provider“$name”")
+        return ok("{\"updated\":true}", str(R.string.agent_x_provider_refreshed, name))
     }
 
     private suspend fun connectionsList(): AgentToolExecutionResult {
         val content = withClash { queryConnections() }
-        return ok(content.take(120_000), "已读取活动连接")
+        return ok(content.take(120_000), str(R.string.agent_x_connections_read))
     }
 
     private suspend fun connectionClose(arguments: JsonObject): AgentToolExecutionResult {
         val id = arguments.requiredString("id")
         val closed = withClash { closeConnection(id) }
-        require(closed) { "连接不存在或已经关闭" }
-        return ok("{\"closed\":true,\"id\":${quote(id)}}", "连接已关闭")
+        require(closed) { str(R.string.agent_x_bad_connection) }
+        return ok("{\"closed\":true,\"id\":${quote(id)}}", str(R.string.agent_x_connection_closed))
     }
 
     private suspend fun connectionsCloseAll(): AgentToolExecutionResult {
         withClash { closeAllConnections() }
-        return ok("{\"closed_all\":true}", "全部活动连接已关闭")
+        return ok("{\"closed_all\":true}", str(R.string.agent_x_connections_closed))
     }
 
     private suspend fun resolveProfile(id: String?): Profile = withProfile {
         if (id.isNullOrBlank()) queryActive() else runCatching { UUID.fromString(id) }.getOrNull()?.let { queryByUUID(it) }
-    } ?: error(if (id.isNullOrBlank()) "当前没有已启用配置" else "找不到配置 $id")
+    } ?: error(if (id.isNullOrBlank()) str(R.string.agent_x_no_active_profile) else str(R.string.agent_x_profile_not_found, id))
 
     private suspend fun readProfileConfig(uuid: UUID): String {
         val directory = context.cacheDir.resolve("agent-transfer").apply { mkdirs() }
@@ -608,15 +610,18 @@ class AndroidAgentToolExecutor(
     }
 
     private fun normalizeYaml(yaml: String): String = yaml.trim().let {
-        require(it.isNotBlank()) { "YAML 不能为空" }
+        require(it.isNotBlank()) { str(R.string.agent_x_empty_yaml) }
         if (it.endsWith('\n')) it else "$it\n"
     }
+
+    /** Every user-facing string goes through resources so it follows the locale. */
+    private fun str(@StringRes id: Int, vararg args: Any): String = context.getString(id, *args)
 
     private fun ok(content: String, summary: String) = AgentToolExecutionResult(true, content, summary)
     private fun quote(value: String) = kotlinx.serialization.json.JsonPrimitive(value).toString()
 
     private fun JsonObject.requiredString(name: String): String = this[name]?.jsonPrimitive?.contentOrNull
-        ?.takeIf(String::isNotBlank) ?: error("缺少参数 $name")
+        ?.takeIf(String::isNotBlank) ?: error(str(R.string.agent_x_missing_param, name))
     private fun JsonObject.optionalString(name: String): String? = this[name]?.jsonPrimitive?.contentOrNull
     private fun JsonObject.optionalBoolean(name: String): Boolean? = this[name]?.jsonPrimitive?.booleanOrNull
     private fun JsonObject.optionalLong(name: String): Long? = this[name]?.jsonPrimitive?.longOrNull
@@ -637,8 +642,8 @@ class AndroidAgentToolExecutor(
             if (!Remote.broadcasts.clashRunning) break
             delay(100)
         }
-        require(!Remote.broadcasts.clashRunning) { "VPN 未能及时停止，设置已保存但尚未生效" }
-        require(startVpn()) { "设置已保存，但 VPN 重新启动失败" }
+        require(!Remote.broadcasts.clashRunning) { str(R.string.agent_x_vpn_stop_timeout_saved) }
+        require(startVpn()) { str(R.string.agent_x_vpn_restart_failed) }
         return true
     }
 
@@ -660,7 +665,7 @@ class AndroidAgentToolExecutor(
     private fun overrideSlot(value: String): Clash.OverrideSlot = when (value.lowercase()) {
         "session" -> Clash.OverrideSlot.Session
         "persist", "persistent" -> Clash.OverrideSlot.Persist
-        else -> error("覆写槽必须是 session 或 persist")
+        else -> error(str(R.string.agent_x_bad_slot))
     }
 
     private data class AppEntry(val label: String, val packageName: String, val uid: Int, val system: Boolean)

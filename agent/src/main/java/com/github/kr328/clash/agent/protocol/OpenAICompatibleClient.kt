@@ -73,7 +73,7 @@ class OpenAICompatibleClient(
             val status = connection.responseCode
             if (status !in 200..299) {
                 val error = connection.errorStream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                throw IOException("模型服务返回 HTTP $status：${extractError(error)}")
+                throw IOException("Model endpoint returned HTTP $status: ${extractError(error)}")
             }
 
             connection.inputStream.bufferedReader().use { reader ->
@@ -107,7 +107,7 @@ class OpenAICompatibleClient(
             val line = reader.readLine() ?: break
             if (line.isNotBlank()) first = line
         }
-        var initial = first ?: throw IOException("模型服务返回了空响应")
+        var initial = first ?: throw IOException("Model endpoint returned an empty response")
         if (initial.startsWith("{") || initial.startsWith("[")) {
             val body = buildString {
                 append(initial)
@@ -116,7 +116,7 @@ class OpenAICompatibleClient(
             return parseNonStreaming(body, onText)
         }
         while (!initial.startsWith("data:")) {
-            initial = reader.readLine() ?: throw IOException("模型服务未返回有效的 SSE data 事件")
+            initial = reader.readLine() ?: throw IOException("Model endpoint sent no valid SSE data event")
         }
 
         val content = StringBuilder()
@@ -170,7 +170,7 @@ class OpenAICompatibleClient(
     private suspend fun parseNonStreaming(body: String, onText: suspend (String) -> Unit): OpenAICompletion {
         val root = json.parseToJsonElement(body).jsonObject
         val message = root["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonObject
-            ?: throw IOException("模型响应缺少 choices.message")
+            ?: throw IOException("Model response has no choices.message")
         val content = message["content"]?.jsonPrimitive?.contentOrNull.orEmpty()
         if (content.isNotEmpty()) onText(content)
         val calls = message["tool_calls"]?.jsonArray?.mapIndexed { index, element ->
@@ -399,7 +399,7 @@ class OpenAICompatibleClient(
     private fun extractError(body: String): String = runCatching {
         val root = json.parseToJsonElement(body).jsonObject
         root["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
-    }.getOrNull()?.take(1000) ?: body.take(1000).ifBlank { "无错误详情" }
+    }.getOrNull()?.take(1000) ?: body.take(1000).ifBlank { "no error detail" }
 
     private class MutableToolCall {
         var id: String = ""

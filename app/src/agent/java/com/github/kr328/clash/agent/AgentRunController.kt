@@ -102,7 +102,7 @@ object AgentRunController {
                 stopVpn = { Global.application.stopClashService() },
             )
             try {
-                val finalText = AgentEngine().run(
+                val finalText = AgentEngine(strings = ResourceAgentStrings(context)).run(
                     settings = settings,
                     history = history,
                     prompt = prompt,

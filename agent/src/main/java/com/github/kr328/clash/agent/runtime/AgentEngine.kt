@@ -25,6 +25,7 @@ import kotlinx.serialization.json.put
 class AgentEngine(
     private val client: OpenAICompatibleClient = OpenAICompatibleClient(),
     private val json: Json = Json { ignoreUnknownKeys = true },
+    private val strings: AgentStrings = AgentStrings.English,
 ) {
     enum class AgentScenario(val systemHint: String) {
         GENERAL(""),
@@ -65,8 +66,8 @@ class AgentEngine(
         emit: suspend (AgentRunEvent) -> Unit,
         scenario: AgentScenario = AgentScenario.GENERAL,
     ): String {
-        require(settings.isConfigured) { "请先配置模型接口、API Key 和模型名称" }
-        require(prompt.isNotBlank()) { "消息不能为空" }
+        require(settings.isConfigured) { strings.notConfigured() }
+        require(prompt.isNotBlank()) { strings.emptyPrompt() }
 
         val messages = mutableListOf<JsonObject>()
         messages += buildJsonObject {
@@ -114,9 +115,8 @@ class AgentEngine(
             messages += completion.assistantMessage
 
             if (completion.toolCalls.isEmpty()) {
-                val finalText = joinVisible(displayedPrefix, completion.content).ifBlank {
-                    "操作已完成。"
-                }
+                val finalText = joinVisible(displayedPrefix, completion.content)
+                    .ifBlank { strings.emptyReply() }
                 emit(AgentRunEvent.Completed(finalText))
                 return finalText
             }
@@ -134,14 +134,14 @@ class AgentEngine(
                 }.getOrNull() ?: JsonObject(emptyMap())
 
                 val result = if (tool == null) {
-                    AgentToolExecutionResult(false, "Unknown tool: ${call.name}", "不支持的操作 ${call.name}")
+                    AgentToolExecutionResult(false, "Unknown tool: ${call.name}", strings.unsupportedTool(call.name))
                 } else {
                     val summary = summarize(tool.name, arguments)
                     val decision = AgentAuthorizationPolicy.decide(settings.authorizationMode, tool.risk)
                     val approved = decision == AgentAuthorizationDecision.ALLOW ||
                         approvalHandler.approve(tool, arguments, summary)
                     if (!approved) {
-                        AgentToolExecutionResult(false, "The user denied this operation.", "已取消：$summary")
+                        AgentToolExecutionResult(false, "The user denied this operation.", strings.cancelled(summary))
                     } else {
                         emit(AgentRunEvent.ToolStarted(tool.name, summary))
                         try {
@@ -152,7 +152,7 @@ class AgentEngine(
                             AgentToolExecutionResult(
                                 false,
                                 "${error.javaClass.simpleName}: ${error.message ?: "unknown error"}",
-                                error.message ?: "操作失败",
+                                error.message ?: strings.operationFailed(),
                             )
                         }
                     }.also {
@@ -168,7 +168,7 @@ class AgentEngine(
             }
         }
 
-        throw IllegalStateException("操作步骤超过 ${settings.maxToolRounds} 轮，已安全停止；请把任务拆小后重试")
+        throw IllegalStateException(strings.roundLimitReached(settings.maxToolRounds))
     }
 
     private suspend fun completeWithRetry(
@@ -187,7 +187,7 @@ class AgentEngine(
             } catch (error: Throwable) {
                 lastError = error
                 if (attempt + 1 < MAX_REQUEST_ATTEMPTS) {
-                    emit(AgentRunEvent.Failed("模型连接中断，正在重试（${attempt + 2}/$MAX_REQUEST_ATTEMPTS）", true))
+                    emit(AgentRunEvent.Failed(strings.retrying(attempt + 2, MAX_REQUEST_ATTEMPTS), true))
                     delay(750L * (attempt + 1))
                 }
             }
@@ -228,35 +228,19 @@ class AgentEngine(
         }
     }
 
+    /**
+     * Extracts the locale-independent parts of a call — the subject it acts on
+     * and the size of any YAML payload — and hands them to [AgentStrings] to be
+     * worded. Producing the wording here is what previously pinned approval
+     * prompts to one language.
+     */
     private fun summarize(name: String, arguments: JsonObject): String {
-        val target = listOf("name", "profile_id", "group", "proxy", "type", "id")
+        val target = SUMMARY_TARGET_KEYS
             .mapNotNull { key -> arguments[key]?.jsonPrimitive?.contentOrNull?.take(80) }
             .joinToString(" · ")
-        val label = when (name) {
-            "profile_create" -> "创建并验证配置"
-            "profile_replace_config" -> "修改并应用配置"
-            "profile_restore_latest" -> "恢复配置备份"
-            "profile_activate" -> "切换配置"
-            "profile_clone" -> "复制配置"
-            "profile_update_metadata" -> "修改配置资料"
-            "profile_delete" -> "删除配置"
-            "access_control_replace" -> "修改应用访问控制"
-            "vpn_settings_update" -> "修改 Android VPN 设置"
-            "runtime_set_mode" -> "切换运行模式"
-            "runtime_start" -> "启动代理"
-            "runtime_stop" -> "停止代理"
-            "override_replace" -> "修改客户端覆写设置"
-            "override_clear" -> "清空客户端覆写设置"
-            "proxy_select" -> "切换代理节点"
-            "proxy_healthcheck" -> "检测代理"
-            "provider_refresh" -> "刷新 Provider"
-            "connection_close" -> "关闭连接"
-            "connections_close_all" -> "关闭全部连接"
-            else -> name
-        }
-        val yaml = arguments["yaml"]?.jsonPrimitive?.contentOrNull
-        val size = yaml?.let { " · 完整 YAML ${it.lineSequence().count()} 行" }.orEmpty()
-        return (if (target.isBlank()) label else "$label：$target") + size
+        val yamlLines = arguments["yaml"]?.jsonPrimitive?.contentOrNull
+            ?.lineSequence()?.count() ?: 0
+        return strings.operationSummary(name, target, yamlLines)
     }
 
     private fun joinVisible(prefix: String, text: String): String = when {
@@ -267,6 +251,10 @@ class AgentEngine(
 
     companion object {
         private const val MAX_CONTEXT_MESSAGES = 32
+
+        /** Argument keys worth naming in an approval prompt, in priority order. */
+        private val SUMMARY_TARGET_KEYS =
+            listOf("name", "profile_id", "group", "proxy", "type", "id")
 
         /** Marks app-generated turn records so the model can tell them from its own text. */
         const val EXECUTION_RECORD_PREFIX = "[verified execution record] "

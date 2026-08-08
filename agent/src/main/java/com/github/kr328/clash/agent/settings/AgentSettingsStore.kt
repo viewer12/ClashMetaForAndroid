@@ -59,7 +59,7 @@ class AgentSettingsStore(context: Context) {
             val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
             "gcm:${Base64.encodeToString(cipher.iv, Base64.NO_WRAP)}:${Base64.encodeToString(encrypted, Base64.NO_WRAP)}"
         } catch (error: Throwable) {
-            throw IllegalStateException("无法使用 Android 安全存储保存 API Key", error)
+            throw IllegalStateException("Android Keystore refused to encrypt the API key", error)
         }
     }
 
