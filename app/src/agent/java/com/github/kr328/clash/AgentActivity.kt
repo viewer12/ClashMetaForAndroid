@@ -87,7 +87,15 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         jumpLatest = root.findViewById(R.id.agent_jump_latest)
         jumpLatest.setOnClickListener {
             followOutput = true
-            scrollToEnd()
+            // A live fling would keep fighting the pin.
+            recycler.stopScroll()
+            // Straight to pinToBottom, never through scrollToPosition: the tap
+            // happens while the tall streaming item is on screen, and a pending
+            // scroll anchor for an item taller than the viewport snaps to its
+            // *top* whenever the next relayout consumes it — mid-stream that is
+            // a relayout every commit, so the tap kept landing on the same spot
+            // (the message's beginning) instead of the bottom.
+            pinToBottom()
             updateJumpToLatest()
         }
         // No stackFromEnd: end-anchored layout re-resolves its anchor on every
@@ -512,10 +520,7 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
     /** One deliberate jump: entering the screen or sending a new message. */
     private fun scrollToEnd() {
         if (::adapter.isInitialized && adapter.itemCount > 0) recycler.post {
-            recycler.scrollToPosition(adapter.itemCount - 1)
-            // scrollToPosition only makes the item visible; if it is taller
-            // than the viewport it lands on its top. Settle on its end.
-            recycler.post { pinToBottom() }
+            pinToBottom()
         }
     }
 
@@ -537,14 +542,19 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
      * and the next relayout snapped it back down: the jumping-text bug.
      * Scrolling by the measured gap keeps every frame continuous with the last.
      */
-    private fun pinToBottom() {
+    private fun pinToBottom(retriesLeft: Int = 1) {
         val manager = recycler.layoutManager as? LinearLayoutManager ?: return
         val last = adapter.itemCount - 1
         if (last < 0) return
         val view = manager.findViewByPosition(last)
         if (view == null) {
-            // Far off-screen (cleared history, first layout): jumping is right.
+            // Far off-screen (cleared history, first layout): jumping is right,
+            // but the jump lands on a tall item's *top* — settle on its end
+            // once the layout that attaches it has run.
             recycler.scrollToPosition(last)
+            if (retriesLeft > 0) recycler.post {
+                if (followOutput) pinToBottom(retriesLeft - 1)
+            }
             return
         }
         val gap = bottomGapOf(view, manager)

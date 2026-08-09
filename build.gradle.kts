@@ -195,7 +195,7 @@ subprojects {
                 // Bump per release; reset to -ai.1 after merging a new upstream.
                 // See docs/RELEASING.md.
                 if (!removeSuffix) {
-                    versionNameSuffix = "-ai.3"
+                    versionNameSuffix = "-ai.4"
                 }
 
                 buildConfigField("boolean", "PREMIUM", "Boolean.parseBoolean(\"false\")")
