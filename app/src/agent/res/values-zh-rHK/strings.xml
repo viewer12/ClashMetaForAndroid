@@ -52,6 +52,7 @@
     <string name="agent_trace_failed">未完成</string>
     <string name="agent_trace_step_count">%1$d 步</string>
     <string name="agent_trace_expand">展開運行過程</string>
+    <string name="agent_jump_latest">回到底部</string>
     <string name="agent_status_auth_cautious">謹慎授權</string>
     <string name="agent_status_auth_balanced">均衡授權</string>
     <string name="agent_status_auth_full">全部自動放行</string>

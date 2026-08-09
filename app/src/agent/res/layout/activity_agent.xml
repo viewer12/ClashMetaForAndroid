@@ -160,6 +160,26 @@
                     app:iconGravity="start" />
             </LinearLayout>
         </ScrollView>
+
+        <!--
+          Shown while the user is detached from the streaming tail and content
+          extends below the fold. One tap rejoins the bottom — chasing a bottom
+          that recedes at streaming speed by hand is unwinnable.
+        -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/agent_jump_latest"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="12dp"
+            android:contentDescription="@string/agent_jump_latest"
+            android:src="@drawable/ic_agent_chevron"
+            android:visibility="gone"
+            app:backgroundTint="?attr/colorSurface"
+            app:borderWidth="0dp"
+            app:elevation="3dp"
+            app:fabSize="mini"
+            app:tint="?attr/colorOnSurfaceVariant" />
     </FrameLayout>
 
     <LinearLayout

@@ -55,6 +55,7 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
     private var streamingMessageId: String? = null
     private var followOutput = true
     private var scrollScheduled = false
+    private lateinit var jumpLatest: View
 
     override suspend fun main() {
         val screen = AgentScreenDesign(this)
@@ -79,6 +80,15 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         suggestions = root.findViewById(R.id.agent_empty)
         adapter = AgentChatAdapter(this, conversationStore.load().toMutableList()) { messageId ->
             if (followOutput && messageId == streamingMessageId) scheduleScrollToEnd()
+            // Content growing below the fold is what makes the jump button
+            // relevant; height changes are the only signal without a scroll.
+            updateJumpToLatest()
+        }
+        jumpLatest = root.findViewById(R.id.agent_jump_latest)
+        jumpLatest.setOnClickListener {
+            followOutput = true
+            scrollToEnd()
+            updateJumpToLatest()
         }
         // No stackFromEnd: end-anchored layout re-resolves its anchor on every
         // relayout, and a streaming message taller than the viewport relayouts
@@ -92,8 +102,29 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 when (newState) {
                     RecyclerView.SCROLL_STATE_DRAGGING -> followOutput = false
-                    RecyclerView.SCROLL_STATE_IDLE -> followOutput = isNearBottom()
+                    // Never revoke an engagement made mid-gesture: the bottom
+                    // may have receded past the slop again by the time the
+                    // fling settles, which is exactly the chase this solves.
+                    RecyclerView.SCROLL_STATE_IDLE ->
+                        followOutput = followOutput || isNearBottom()
                 }
+                updateJumpToLatest()
+            }
+
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                // While streaming, the bottom recedes between gestures — waiting
+                // for IDLE to re-engage follow mode left the user chasing it
+                // until the run finished. Catch them the moment they scroll
+                // down near it; any upward scroll cuts the follow immediately.
+                if (recyclerView.scrollState != RecyclerView.SCROLL_STATE_IDLE) {
+                    if (dy < 0) {
+                        followOutput = false
+                    } else if (dy > 0 && !followOutput && isNearBottom()) {
+                        followOutput = true
+                        scheduleScrollToEnd()
+                    }
+                }
+                updateJumpToLatest()
             }
         })
         // The list itself resizing (keyboard opening, the composer growing a
@@ -541,6 +572,17 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         return bottomGapOf(view, manager) <= FOLLOW_SLOP_DP * resources.displayMetrics.density
     }
 
+    /**
+     * The guaranteed way back: whenever the user is detached from the tail and
+     * there is content below the fold, offer one tap to rejoin it. Chasing a
+     * bottom that recedes at streaming speed is otherwise unwinnable.
+     */
+    private fun updateJumpToLatest() {
+        if (!::jumpLatest.isInitialized) return
+        val show = !followOutput && recycler.canScrollVertically(1)
+        jumpLatest.visibility = if (show) View.VISIBLE else View.GONE
+    }
+
     private fun updateSuggestionsVisibility() {
         if (::suggestions.isInitialized) {
             suggestions.visibility = if (adapter.messages.isEmpty()) View.VISIBLE else View.GONE
@@ -563,10 +605,11 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         val LOOPBACK_HOSTS = setOf("localhost", "127.0.0.1", "::1")
 
         /**
-         * How close to the bottom still counts as "following". Half a line of
-         * body text of slack absorbs rounding; anything larger would re-engage
-         * follow mode while the user is actually reading.
+         * How close to the bottom counts as "wants to follow again". Generous
+         * on purpose: while streaming, the bottom moves away between the last
+         * scroll event and the check, so a tight slop is unreachable. Someone
+         * this close to a growing tail is chasing it, not reading.
          */
-        const val FOLLOW_SLOP_DP = 12
+        const val FOLLOW_SLOP_DP = 96
     }
 }

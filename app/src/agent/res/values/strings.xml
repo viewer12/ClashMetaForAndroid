@@ -56,6 +56,7 @@
     <string name="agent_trace_failed">Did not finish</string>
     <string name="agent_trace_step_count">%1$d steps</string>
     <string name="agent_trace_expand">Show the steps</string>
+    <string name="agent_jump_latest">Back to the bottom</string>
     <string name="agent_status_auth_cautious">Cautious approval</string>
     <string name="agent_status_auth_balanced">Balanced approval</string>
     <string name="agent_status_auth_full">Everything runs automatically</string>
