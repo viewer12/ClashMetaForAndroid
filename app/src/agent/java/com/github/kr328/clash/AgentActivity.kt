@@ -5,6 +5,7 @@ import android.content.DialogInterface
 import android.net.Uri
 import android.text.method.PasswordTransformationMethod
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
@@ -79,7 +80,11 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         adapter = AgentChatAdapter(this, conversationStore.load().toMutableList()) { messageId ->
             if (followOutput && messageId == streamingMessageId) scheduleScrollToEnd()
         }
-        recycler.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
+        // No stackFromEnd: end-anchored layout re-resolves its anchor on every
+        // relayout, and a streaming message taller than the viewport relayouts
+        // on every text commit — the combination is the documented pathological
+        // case that made the list leap a whole screen per frame.
+        recycler.layoutManager = LinearLayoutManager(this)
         recycler.itemAnimator = null
         recycler.setHasFixedSize(true)
         recycler.adapter = adapter
@@ -91,6 +96,11 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
                 }
             }
         })
+        // The list itself resizing (keyboard opening, the composer growing a
+        // line) must not detach the view from the streaming tail.
+        recycler.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (bottom - top != oldBottom - oldTop && followOutput) scheduleScrollToEnd()
+        }
         updateSuggestionsVisibility()
         scrollToEnd()
 
@@ -468,9 +478,13 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         } else getString(R.string.agent_not_configured)
     }
 
+    /** One deliberate jump: entering the screen or sending a new message. */
     private fun scrollToEnd() {
         if (::adapter.isInitialized && adapter.itemCount > 0) recycler.post {
             recycler.scrollToPosition(adapter.itemCount - 1)
+            // scrollToPosition only makes the item visible; if it is taller
+            // than the viewport it lands on its top. Settle on its end.
+            recycler.post { pinToBottom() }
         }
     }
 
@@ -479,16 +493,52 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
         scrollScheduled = true
         recycler.postOnAnimation {
             scrollScheduled = false
-            if (followOutput && adapter.itemCount > 0) {
-                recycler.scrollToPosition(adapter.itemCount - 1)
-            }
+            if (followOutput && adapter.itemCount > 0) pinToBottom()
         }
     }
 
+    /**
+     * Follows streaming output with exact pixel scrolls, never scrollToPosition.
+     *
+     * scrollToPosition re-resolves the layout anchor, and for an item taller
+     * than the viewport LinearLayoutManager anchors its *top* edge — so each
+     * call while a long answer streamed snapped the list a whole screen up,
+     * and the next relayout snapped it back down: the jumping-text bug.
+     * Scrolling by the measured gap keeps every frame continuous with the last.
+     */
+    private fun pinToBottom() {
+        val manager = recycler.layoutManager as? LinearLayoutManager ?: return
+        val last = adapter.itemCount - 1
+        if (last < 0) return
+        val view = manager.findViewByPosition(last)
+        if (view == null) {
+            // Far off-screen (cleared history, first layout): jumping is right.
+            recycler.scrollToPosition(last)
+            return
+        }
+        val gap = bottomGapOf(view, manager)
+        if (gap > 0) recycler.scrollBy(0, gap)
+    }
+
+    /** Pixels of [view]'s decorated bottom hanging below the visible bottom. */
+    private fun bottomGapOf(view: View, manager: LinearLayoutManager): Int {
+        val margin = (view.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin ?: 0
+        return manager.getDecoratedBottom(view) + margin -
+            (recycler.height - recycler.paddingBottom)
+    }
+
+    /**
+     * Pixel-based, not item-based: while a message taller than the screen is
+     * streaming, the last *item* is visible even when the user has scrolled up
+     * to read its beginning — counting items would keep yanking them back down.
+     */
     private fun isNearBottom(): Boolean {
         if (!::recycler.isInitialized || adapter.itemCount == 0) return true
+        if (!recycler.canScrollVertically(1)) return true
         val manager = recycler.layoutManager as? LinearLayoutManager ?: return true
-        return manager.findLastVisibleItemPosition() >= adapter.itemCount - 2
+        if (manager.findLastVisibleItemPosition() < adapter.itemCount - 1) return false
+        val view = manager.findViewByPosition(adapter.itemCount - 1) ?: return false
+        return bottomGapOf(view, manager) <= FOLLOW_SLOP_DP * resources.displayMetrics.density
     }
 
     private fun updateSuggestionsVisibility() {
@@ -511,5 +561,12 @@ class AgentActivity : BaseActivity<AgentScreenDesign>() {
     private companion object {
         /** Matches the hosts network_security_config permits cleartext for. */
         val LOOPBACK_HOSTS = setOf("localhost", "127.0.0.1", "::1")
+
+        /**
+         * How close to the bottom still counts as "following". Half a line of
+         * body text of slack absorbs rounding; anything larger would re-engage
+         * follow mode while the user is actually reading.
+         */
+        const val FOLLOW_SLOP_DP = 12
     }
 }

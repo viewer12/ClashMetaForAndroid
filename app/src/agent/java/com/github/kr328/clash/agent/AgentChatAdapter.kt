@@ -222,6 +222,9 @@ class AgentChatAdapter(
         // Claim the newest sequence so an in-flight background render for this
         // holder can never overwrite what is applied here.
         holder.appliedSequence.set(holder.sequence.incrementAndGet())
+        // Binds are never mid-stream; a ratcheted shrink-guard from an earlier
+        // streaming pass of this holder must not prop up the settled text.
+        holder.text.minHeight = 0
 
         val rendered = runCatching { markwon.toMarkdown(message.content) }.getOrNull()
             ?: SpannableString(message.content)
@@ -466,6 +469,11 @@ class AgentChatAdapter(
                 holder.appliedSequence.set(request.sequence)
                 if (request.streaming) {
                     holder.text.minHeight = maxOf(holder.text.minHeight, holder.text.height)
+                } else {
+                    // The final render is authoritative: release the streaming
+                    // shrink-guard so a shorter settled text can take its real
+                    // height instead of keeping the tallest transient one.
+                    holder.text.minHeight = 0
                 }
                 if (holder.measuredHeight == 0 && holder.itemView.height > 0) {
                     holder.measuredHeight = holder.itemView.height
